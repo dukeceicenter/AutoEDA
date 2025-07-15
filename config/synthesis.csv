@@ -1,0 +1,7 @@
+version,clk_period,DRC_max_fanout,DRC_max_transition,DRC_max_capacitance,DRC_high_fanout_net_threshold,DRC_high_fanout_pin_capacitance,compile_cmd,power_effort,area_effort,map_effort,set_dyn_opt,set_lea_opt
+cpV1_clkP1_drcV1,1,10,0.5,5,10,0.01,compile,high,high,high,true,true
+cpV1_clkP1_drcV2,1,40,0.5,5,25,0.01,compile,high,high,high,true,true
+cpV2_clkP1_drcV2,1,40,0.5,5,25,0.01,compile,high,high,high,false,false
+cpV3_clkP1_drcV2,1,40,0.5,5,25,0.01,compile,low,low,high,false,false
+cpV4_clkP1_drcV2,1,40,0.5,5,25,0.01,compile,low,low,low,false,false
+cuV1_clkP1_drcV1,1,10,0.5,5,10,0.01,compile_ultra,N/A,N/A,N/A,false,false

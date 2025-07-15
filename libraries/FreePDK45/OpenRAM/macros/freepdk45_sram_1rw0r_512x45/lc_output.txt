@@ -1,0 +1,12 @@
+
+Initializing...
+Reading '/home/jp502/Projects/system-PPA/backend/macros/freepdk45_sram_1rw0r_512x45/freepdk45_sram_1rw0r_512x45_TT_1p0V_25C.lib' ...
+Warning: Line 1, The 'internal_power_calculation' attribute in char_config group is required for NLPM library. 
+        No default can be applied to this attribute. (LBDB-366)
+Technology library 'freepdk45_sram_1rw0r_512x45_TT_1p0V_25C_lib' read successfully
+Wrote the 'freepdk45_sram_1rw0r_512x45_TT_1p0V_25C_lib' library to '/home/jp502/Projects/system-PPA/backend/macros/freepdk45_sram_1rw0r_512x45/freepdk45_sram_1rw0r_512x45_TT_1p0V_25C.db' successfully
+Maximum memory usage for this session: 68.29 MB
+CPU usage for this session:      3 seconds (  0.00 hours)
+Elapsed time for this session:      3 seconds (  0.00 hours)
+Thank you for using Library Compiler.
+

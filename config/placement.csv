@@ -1,0 +1,7 @@
+version,place_global_timing_effort,place_global_cong_effort,place_detail_wire_length_opt_effort,place_global_max_density,place_activity_power_driven,prects_opt_max_density,prects_opt_power_effort,prects_opt_reclaim_area,prects_fix_fanout_load
+V1,medium,medium,medium,0.9,false,0.8,low,false,false
+V2,medium,medium,medium,0.9,true,0.8,high,false,false
+V3,high,high,medium,0.9,false,0.8,none,false,false
+V4,high,high,medium,0.75,false,0.8,none,false,false
+V5,high,high,high,0.75,false,0.8,none,false,false
+V6,high,high,high,0.75,false,0.8,none,true,true

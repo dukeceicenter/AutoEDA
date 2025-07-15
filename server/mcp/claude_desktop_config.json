@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "eda-server": {
+      "command": "ssh",
+      "args": [
+        "yl996@hl279-cmp-00.egr.duke.edu",
+        "cd /home/yl996/proj/mcp-eda-example/server/mcp && python mcp_eda_server.py"
+      ],
+      "env": {}
+    }
+  }
+} 

@@ -1,0 +1,6 @@
+1. Enter follow website
+
+http://projects.si2.org/openeda.si2.org/project/showfiles.php?group_id=63#p78
+
+2. download captacles.tgz and NangateOpenCellLibrary_PDKv1_3_v2010_12.tgz
+

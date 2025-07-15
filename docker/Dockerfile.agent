@@ -1,0 +1,32 @@
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install Python dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY mcp_agent_client.py .
+COPY server/ ./server/
+
+# Create necessary directories
+RUN mkdir -p logs deliverables
+
+# Add health check endpoint
+RUN echo 'from fastapi import FastAPI; app = FastAPI(); @app.get("/health"); def health_check(): return {"status": "healthy"}' > health_app.py
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Start the application
+CMD ["uvicorn", "mcp_agent_client:app", "--host", "0.0.0.0", "--port", "8000"] 

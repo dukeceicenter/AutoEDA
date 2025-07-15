@@ -1,0 +1,5 @@
+version,cts_cell_density,cts_clock_gate_buffering_location,cts_clone_clock_gates,postcts_opt_max_density,postcts_opt_power_effort,postcts_opt_reclaim_area,postcts_fix_fanout_load
+V1,0.5,below,true,0.8,low,false,false
+V2,0.5,below,true,0.8,low,true,false
+V3,0.5,below,true,0.8,low,true,true
+V4,0.5,below,true,0.8,high,true,true
