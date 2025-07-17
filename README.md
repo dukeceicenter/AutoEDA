@@ -2,7 +2,7 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com/)
 
-A comprehensive **Model Context Protocol (MCP)** based Electronic Design Automation (EDA) system that provides intelligent automation for digital design implementation flows. This system integrates multiple EDA tools through a unified MCP interface, enabling natural language-driven design automation.
+A comprehensive **Model Context Protocol (MCP)** based Electronic Design Automation (EDA) system that provides intelligent automation for digital design implementation flows. This system integrates multiple EDA tools through a unified MCP interface, enabling natural language-driven design automation with experimental evaluation framework.
 
 ## Features
 
@@ -13,6 +13,8 @@ A comprehensive **Model Context Protocol (MCP)** based Electronic Design Automat
 - **Real-time Monitoring**: Live status tracking and detailed logging
 - **Modular Architecture**: Independent microservices for each design stage
 - **Configuration Management**: CSV-based parameter management for design optimization
+- **Experimental Framework**: Comprehensive TCL accuracy evaluation system
+- **Multiple Design Support**: Support for various benchmark designs (des, b14, leon2, etc.)
 
 ## System Architecture
 
@@ -42,6 +44,50 @@ A comprehensive **Model Context Protocol (MCP)** based Electronic Design Automat
 | **Clock Tree Synthesis** | 13338 | `/cts/run` | Clock distribution network synthesis |
 | **Routing** | 13339 | `/route/run` | Signal routing and optimization |
 | **Save Design** | 13440 | `/save/run` | Final design saving and output generation |
+
+## Experimental Framework
+
+The project includes a comprehensive experimental framework for evaluating TCL generation accuracy across different methods:
+
+### Experiment Methods
+
+1. **Baseline1**: Pure LLM-based TCL generation
+2. **Baseline2**: LLM + template-based generation  
+3. **Ours**: MCP agent with real EDA tool execution
+
+### Experiment Structure
+
+```
+experiment/
+├── generate/                    # TCL generation scripts
+│   ├── baseline1_generate.py   # Pure LLM generation
+│   ├── baseline2_generate.py   # LLM + template generation
+│   ├── ours_generate.py        # MCP agent generation
+│   └── common_config.py        # Shared configuration
+├── evaluate/                    # Evaluation scripts
+│   ├── tcl_evaluator.py        # Main evaluator
+│   └── evaluation_metrics.py   # Quality metrics
+├── results/                     # Generation results
+├── evaluation_results/          # Evaluation reports
+└── run_experiment.py           # Main experiment runner
+```
+
+### Running Experiments
+
+```bash
+# Run complete experiment (generate + evaluate)
+cd experiment
+python run_experiment.py --full
+
+# Run only generation for specific methods
+python run_experiment.py --generate baseline1 ours
+
+# Run only evaluation on existing results
+python run_experiment.py --evaluate
+
+# Clean previous results
+python run_experiment.py --clean --full
+```
 
 ## Prerequisites
 
@@ -178,7 +224,7 @@ curl -X POST http://localhost:8000/agent \
   -d '{"user_query":"Run synth_setup for design=\"des\" and return the log path."}'
 ```
 
-## 📖 Usage Guide
+## Usage Guide
 
 ### Natural Language Interface
 
@@ -247,14 +293,15 @@ curl -X POST http://localhost:8000/agent \
 ```
 mcp-eda-example/
 ├── designs/                    # Design source files and results
-│   ├── des/                   # Example design
+│   ├── des/                   # DES encryption design
 │   │   ├── rtl/              # RTL source files
 │   │   ├── FreePDK45/        # Technology-specific results
 │   │   │   ├── synthesis/    # Synthesis outputs
 │   │   │   └── implementation/ # Physical implementation
-│   │   └── config.tcl           # Design configuration
-│   ├── b14/                  # Additional designs
-│   └── leon2/
+│   │   └── config.tcl        # Design configuration
+│   ├── b14/                  # VHDL benchmark design
+│   ├── leon2/                # LEON2 processor design
+│   └── des3/                 # Additional designs
 ├── server/                    # MCP server implementations
 │   ├── synth_setup_server.py    # Synthesis setup service
 │   ├── synth_compile_server.py  # Synthesis compile service
@@ -263,7 +310,22 @@ mcp-eda-example/
 │   ├── placement_server.py      # Placement service
 │   ├── cts_server.py           # Clock tree synthesis service
 │   ├── route_server.py         # Routing service
-│   └── save_server.py          # Design save service
+│   ├── save_server.py          # Design save service
+│   └── mcp/                   # MCP server implementations
+│       ├── mcp_eda_server.py   # Main MCP server
+│       └── start_mcp_server.sh # MCP server startup script
+├── experiment/                 # Experimental framework
+│   ├── generate/              # TCL generation methods
+│   │   ├── baseline1_generate.py  # Pure LLM generation
+│   │   ├── baseline2_generate.py  # LLM + template generation
+│   │   ├── ours_generate.py       # MCP agent generation
+│   │   └── common_config.py       # Shared configuration
+│   ├── evaluate/              # Evaluation framework
+│   │   ├── tcl_evaluator.py       # Main evaluator
+│   │   └── evaluation_metrics.py  # Quality metrics
+│   ├── results/               # Generation results
+│   ├── evaluation_results/    # Evaluation reports
+│   └── run_experiment.py      # Main experiment runner
 ├── scripts/                   # EDA tool scripts
 │   ├── FreePDK45/           # Technology-specific scripts
 │   │   ├── frontend/        # Synthesis scripts
@@ -330,6 +392,49 @@ set clk_period 1.0
 | `target_util` | Target utilization | 0.7 |
 | `design_flow_effort` | Flow effort level | `standard` |
 | `design_power_effort` | Power optimization effort | `medium` |
+
+## Experimental Framework
+
+### Supported Designs
+
+The system supports various benchmark designs:
+
+- **des**: DES encryption design (Verilog)
+- **b14**: VHDL benchmark design
+- **leon2**: LEON2 processor design
+- **des3**: Additional DES variant
+
+### Experiment Methods
+
+1. **Baseline1 (Pure LLM)**: Direct GPT-4 TCL generation without templates
+2. **Baseline2 (LLM + Template)**: GPT-4 generation with template guidance
+3. **Ours (MCP Agent)**: Real MCP agent execution with EDA tools
+
+### Quality Metrics
+
+The evaluation framework assesses TCL quality across multiple dimensions:
+
+- **Syntax**: Valid TCL syntax and structure
+- **Completeness**: Coverage of required commands
+- **Executability**: Ability to run successfully
+- **Professionalism**: Industry-standard practices
+
+### Running Experiments
+
+```bash
+# Complete experiment
+cd experiment
+python run_experiment.py --full
+
+# Specific methods only
+python run_experiment.py --generate baseline1 ours
+
+# Evaluation only
+python run_experiment.py --evaluate --summary
+
+# Clean and run
+python run_experiment.py --clean --full
+```
 
 ## API Reference
 
@@ -500,6 +605,17 @@ curl -X POST http://localhost:8000/agent \
   -d '{"user_query":"Run synth_setup for design=\"leon2\" and return the log path."}'
 ```
 
+### Run Experiments
+
+```bash
+# Test experimental framework
+cd experiment
+python run_experiment.py --full --summary
+
+# Test specific method
+python run_experiment.py --generate ours --case_ids case_0
+```
+
 ## Contributing
 
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
@@ -519,6 +635,11 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 - Add type hints
 - Include docstrings for all functions
 
+## Documentation
+
+- **[Quick Start Guide](QUICK_START_GUIDE.md)**: Step-by-step setup and usage
+- **[API Documentation](API_DOCUMENTATION.md)**: Detailed API reference
+- **[MCP Implementation](MCP_IMPLEMENTATION.md)**: MCP protocol details
 
 ## Acknowledgments
 
@@ -536,12 +657,10 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ## Version History
 
-- **v1.0.0** - Initial release with basic MCP EDA functionality
-- **v1.1.0** - Added VHDL support and improved error handling
+- **v2.0.0** - Added experimental framework and MCP server improvements
 - **v1.2.0** - Enhanced monitoring and logging capabilities
- 
-## License
-This work is licensed under a [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International](https://creativecommons.org/licenses/by-nc-sa/4.0/).
+- **v1.1.0** - Added VHDL support and improved error handling
+- **v1.0.0** - Initial release with basic MCP EDA functionality
 
 ---
 
@@ -549,4 +668,5 @@ This work is licensed under a [Creative Commons Attribution-NonCommercial-ShareA
 
 Author: Yiyi Lu, Jingyu Pan, Junyao Zhang
 
-Email Contact: czluyiyi@gmail.com
+Email: czluyiyi@gmail.com
+

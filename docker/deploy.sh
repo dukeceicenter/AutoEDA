@@ -1,7 +1,8 @@
 #!/bin/bash
-
-# MCP EDA Docker Deployment Script
-# This script helps deploy the MCP EDA system using Docker
+"""
+MCP-EDA-Server Docker Deployment Script
+Deploy and manage the complete MCP-EDA-Server stack
+"""
 
 set -e
 
@@ -11,6 +12,12 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+# Configuration
+PROJECT_NAME="mcp-eda"
+COMPOSE_FILE="docker-compose.yml"
+OVERRIDE_FILE="docker-compose.override.yml"
+ENV_FILE=".env"
 
 # Function to print colored output
 print_status() {
@@ -46,116 +53,97 @@ check_prerequisites() {
     fi
     
     # Check if .env file exists
-    if [ ! -f ".env" ]; then
+    if [ ! -f "$ENV_FILE" ]; then
         print_warning ".env file not found. Creating from template..."
-        cp docker/env.example .env
-        print_warning "Please edit .env file with your configuration before continuing."
+        cp docker/env.example "$ENV_FILE"
+        print_warning "Please edit $ENV_FILE with your configuration before continuing."
         exit 1
     fi
     
-    # Check if EDA tools are accessible
-    print_status "Checking EDA tools accessibility..."
-    
-    # Check Design Compiler
-    if ! command -v dc_shell &> /dev/null; then
-        print_warning "Design Compiler (dc_shell) not found in PATH"
-    else
-        print_success "Design Compiler found"
-    fi
-    
-    # Check Innovus
-    if ! command -v innovus &> /dev/null; then
-        print_warning "Innovus not found in PATH"
-    else
-        print_success "Innovus found"
-    fi
-    
-    print_success "Prerequisites check completed"
+    print_success "Prerequisites check passed"
 }
 
-# Function to build Docker images
+# Function to build images
 build_images() {
     print_status "Building Docker images..."
     
-    docker-compose build
+    docker-compose -f "$COMPOSE_FILE" build --no-cache
     
-    if [ $? -eq 0 ]; then
         print_success "Docker images built successfully"
-    else
-        print_error "Failed to build Docker images"
-        exit 1
-    fi
 }
 
 # Function to start services
 start_services() {
-    print_status "Starting MCP EDA services..."
+    local profile="$1"
+    print_status "Starting services with profile: $profile"
     
-    docker-compose up -d
-    
-    if [ $? -eq 0 ]; then
-        print_success "Services started successfully"
+    if [ -n "$profile" ]; then
+        docker-compose -f "$COMPOSE_FILE" --profile "$profile" up -d
     else
-        print_error "Failed to start services"
-        exit 1
-    fi
-}
-
-# Function to check service health
-check_health() {
-    print_status "Checking service health..."
-    
-    # Wait for services to start
-    sleep 10
-    
-    # Check MCP Agent Client
-    if curl -f http://localhost:8000/health &> /dev/null; then
-        print_success "MCP Agent Client is healthy"
-    else
-        print_warning "MCP Agent Client health check failed"
+        docker-compose -f "$COMPOSE_FILE" up -d
     fi
     
-    # Check MCP Servers
-    for port in 13333 13335 13337 13339; do
-        if curl -f http://localhost:$port/health &> /dev/null; then
-            print_success "MCP Server on port $port is healthy"
-        else
-            print_warning "MCP Server on port $port health check failed"
-        fi
-    done
+    print_success "Services started successfully"
 }
 
 # Function to stop services
 stop_services() {
-    print_status "Stopping MCP EDA services..."
+    print_status "Stopping services..."
     
-    docker-compose down
+    docker-compose -f "$COMPOSE_FILE" down
     
-    if [ $? -eq 0 ]; then
         print_success "Services stopped successfully"
-    else
-        print_error "Failed to stop services"
-        exit 1
-    fi
-}
-
-# Function to show logs
-show_logs() {
-    print_status "Showing service logs..."
-    docker-compose logs -f
 }
 
 # Function to restart services
 restart_services() {
-    print_status "Restarting MCP EDA services..."
+    print_status "Restarting services..."
     
-    docker-compose restart
+    docker-compose -f "$COMPOSE_FILE" restart
     
-    if [ $? -eq 0 ]; then
         print_success "Services restarted successfully"
+}
+
+# Function to check service status
+check_status() {
+    print_status "Checking service status..."
+    
+    docker-compose -f "$COMPOSE_FILE" ps
+    
+    print_status "Checking service health..."
+    docker-compose -f "$COMPOSE_FILE" exec mcp-servers python3 health_check.py
+}
+
+# Function to view logs
+view_logs() {
+    local service="$1"
+    
+    if [ -n "$service" ]; then
+        print_status "Viewing logs for service: $service"
+        docker-compose -f "$COMPOSE_FILE" logs -f "$service"
     else
-        print_error "Failed to restart services"
-        exit 1
+        print_status "Viewing all logs..."
+        docker-compose -f "$COMPOSE_FILE" logs -f
+    fi
+}
+
+# Function to run experiments
+run_experiments() {
+    print_status "Running experiments..."
+    
+    docker-compose -f "$COMPOSE_FILE" --profile experiment run --rm experiment-runner python3 run_experiment.py --full
+}
+
+# Function to run tests
+run_tests() {
+    local test_type="$1"
+    
+    if [ -n "$test_type" ]; then
+        print_status "Running tests: $test_type"
+        docker-compose -f "$COMPOSE_FILE" --profile test run --rm test-runner python3 run_tests.py "$test_type"
+    else
+        print_status "Running all tests..."
+        docker-compose -f "$COMPOSE_FILE" --profile test run --rm test-runner python3 run_tests.py all
     fi
 }
 
@@ -163,76 +151,52 @@ restart_services() {
 cleanup() {
     print_status "Cleaning up Docker resources..."
     
-    docker-compose down --volumes --remove-orphans
-    docker system prune -f
+    # Stop and remove containers
+    docker-compose -f "$COMPOSE_FILE" down --volumes --remove-orphans
+    
+    # Remove unused images
+    docker image prune -f
+    
+    # Remove unused networks
+    docker network prune -f
     
     print_success "Cleanup completed"
 }
 
-# Function to show status
-show_status() {
-    print_status "Service status:"
-    docker-compose ps
-    
-    echo ""
-    print_status "Resource usage:"
-    docker stats --no-stream
-}
-
-# Function to run test
-run_test() {
-    print_status "Running test design..."
-    
-    # Test with DES design
-    response=$(curl -s -X POST http://localhost:8000/agent \
-        -H "Content-Type: application/json" \
-        -d '{"user_query":"Run synth_setup for design=\"des\" and return the log path."}')
-    
-    if echo "$response" | grep -q "status.*ok"; then
-        print_success "Test completed successfully"
-        echo "Response: $response"
-    else
-        print_error "Test failed"
-        echo "Response: $response"
-    fi
-}
-
-# Function to show help
-show_help() {
-    echo "MCP EDA Docker Deployment Script"
-    echo ""
-    echo "Usage: $0 [COMMAND]"
+# Function to show usage
+show_usage() {
+    echo "Usage: $0 [COMMAND] [OPTIONS]"
     echo ""
     echo "Commands:"
-    echo "  check     - Check prerequisites and EDA tools"
-    echo "  build     - Build Docker images"
-    echo "  start     - Start all services"
-    echo "  stop      - Stop all services"
-    echo "  restart   - Restart all services"
-    echo "  status    - Show service status and resource usage"
-    echo "  logs      - Show service logs"
-    echo "  test      - Run a test design"
-    echo "  cleanup   - Clean up Docker resources"
-    echo "  deploy    - Full deployment (check + build + start + health)"
-    echo "  help      - Show this help message"
+    echo "  build                    Build Docker images"
+    echo "  start [PROFILE]          Start services (optional profile: experiment, test)"
+    echo "  stop                     Stop services"
+    echo "  restart                  Restart services"
+    echo "  status                   Check service status and health"
+    echo "  logs [SERVICE]           View logs (optional service name)"
+    echo "  experiment               Run experiments"
+    echo "  test [TYPE]              Run tests (optional type: unit, api, integration, mcp, experiment, all)"
+    echo "  cleanup                  Clean up Docker resources"
+    echo "  help                     Show this help message"
     echo ""
     echo "Examples:"
-    echo "  $0 deploy    # Full deployment"
-    echo "  $0 start     # Start services only"
-    echo "  $0 logs      # View logs"
-    echo "  $0 test      # Run test"
+    echo "  $0 build"
+    echo "  $0 start"
+    echo "  $0 start experiment"
+    echo "  $0 logs mcp-agent-client"
+    echo "  $0 test unit"
+    echo "  $0 experiment"
 }
 
 # Main script logic
 case "${1:-help}" in
-    check)
-        check_prerequisites
-        ;;
     build)
+        check_prerequisites
         build_images
         ;;
     start)
-        start_services
+        check_prerequisites
+        start_services "$2"
         ;;
     stop)
         stop_services
@@ -241,29 +205,26 @@ case "${1:-help}" in
         restart_services
         ;;
     status)
-        show_status
+        check_status
         ;;
     logs)
-        show_logs
+        view_logs "$2"
+        ;;
+    experiment)
+        run_experiments
         ;;
     test)
-        run_test
+        run_tests "$2"
         ;;
     cleanup)
         cleanup
         ;;
-    deploy)
-        check_prerequisites
-        build_images
-        start_services
-        check_health
-        print_success "Deployment completed successfully!"
-        print_status "You can now access:"
-        echo "  - MCP Agent Client: http://localhost:8000"
-        echo "  - API Documentation: http://localhost:8000/docs"
-        echo "  - Test with: $0 test"
+    help|--help|-h)
+        show_usage
         ;;
-    help|*)
-        show_help
+    *)
+        print_error "Unknown command: $1"
+        show_usage
+        exit 1
         ;;
 esac 
