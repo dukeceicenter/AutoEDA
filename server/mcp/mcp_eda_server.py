@@ -608,7 +608,7 @@ if __name__ == "__main__":
     try:
         mcp.run(transport='stdio')
     except KeyboardInterrupt:
-        print("\n MCP EDA Server Stopped")
+        print("\n=== MCP EDA Server Stopped ===")
     except Exception as e:
         print(f"Server startup failed: {e}")
         sys.exit(1) 

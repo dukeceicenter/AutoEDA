@@ -12,6 +12,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
+COPY server/mcp/ ./server/mcp/
 COPY server/ ./server/
 COPY scripts/ ./scripts/
 COPY config/ ./config/
@@ -21,15 +22,12 @@ COPY libraries/ ./libraries/
 # Create necessary directories
 RUN mkdir -p logs deliverables experiment
 
-# Add health check script
-COPY docker/health_check.py ./health_check.py
-
-# Expose ports
-EXPOSE 13333 13334 13335 13336 13337 13338 13339 13440
+# Expose port
+EXPOSE 8001
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python3 health_check.py || exit 1
+    CMD python3 -c "import mcp; print('MCP server healthy')" || exit 1
 
-# Default command (will be overridden by docker-compose)
-CMD ["python3", "server/synth_setup_server.py", "--port", "13333"] 
+# Start the MCP EDA server
+CMD ["python3", "server/mcp/mcp_eda_server.py", "--port", "8001"] 

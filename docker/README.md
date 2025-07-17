@@ -1,503 +1,403 @@
-# MCP EDA Docker Deployment Guide
+# MCP-EDA-Server Docker Deployment
+
+This directory contains Docker configuration files for deploying the complete MCP-EDA-Server stack.
 
 ## Overview
 
-Due to licensing restrictions of commercial EDA tools (Synopsys Design Compiler and Cadence Innovus), this project uses a **hybrid deployment approach** where:
+The Docker setup provides containerized deployment of all MCP-EDA-Server components:
 
-- **MCP Servers**: Containerized for easy deployment and scaling
-- **EDA Tools**: Run on the host system with proper licenses
-- **Communication**: Via network ports between containers and host
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Host System                              │
-│  ┌─────────────────┐    ┌─────────────────┐                │
-│  │   EDA Tools     │    │   MCP Servers   │                │
-│  │   (Host)        │◄──►│   (Docker)      │                │
-│  │                 │    │                 │                │
-│  │ • Design        │    │ • Port 13333-   │                │
-│  │   Compiler      │    │   13440         │                │
-│  │ • Innovus       │    │ • FastAPI       │                │
-│  │ • Licenses      │    │ • Python        │                │
-│  └─────────────────┘    └─────────────────┘                │
-│           │                       │                        │
-│           └───────────────────────┼────────────────────────┘
-│                                   │
-│  ┌─────────────────────────────────┼─────────────────────┐
-│  │         Docker Container        │                     │
-│  │  ┌─────────────────────────────┐ │                     │
-│  │  │    MCP Agent Client         │ │                     │
-│  │  │    (Port 8000)              │ │                     │
-│  │  │    • FastAPI                │ │                     │
-│  │  │    • OpenAI Integration     │ │                     │
-│  │  │    • Natural Language       │ │                     │
-│  │  └─────────────────────────────┘ │                     │
-│  └─────────────────────────────────┘                     │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## Prerequisites
-
-### Host System Requirements
-- **Linux OS** (Ubuntu 20.04+ recommended)
-- **Synopsys Design Compiler** with valid license
-- **Cadence Innovus** with valid license
-- **FreePDK45** technology library
-- **Docker** and **Docker Compose**
-
-### License Setup
-```bash
-# Set up Synopsys license
-export SNPSLMD_LICENSE_FILE=/path/to/synopsys/license
-
-# Set up Cadence license
-export CDS_LIC_FILE=/path/to/cadence/license
-
-# Verify tools are accessible
-which dc_shell
-which innovus
-```
+- **MCP Agent Client**: HTTP API interface (port 8000)
+- **MCP EDA Server**: MCP protocol server (port 8001)
+- **MCP Servers**: Microservices for each design stage (ports 13333-13440)
+- **Experiment Runner**: TCL accuracy evaluation framework
+- **Test Runner**: Comprehensive test suite
 
 ## Quick Start
 
-### 1. Build and Start Services
+### 1. Prerequisites
+
+- Docker and Docker Compose installed
+- EDA tools accessible from host (Synopsys Design Compiler, Cadence Innovus)
+- Valid license files for EDA tools
+
+### 2. Configuration
+
+Copy the environment template and configure it:
 
 ```bash
-# Clone the repository
-git clone https://github.com/AndyLu666/MCP-EDA-Server.git
-cd MCP-EDA-Server
-
-# Build Docker images
-docker-compose build
-
-# Start services
-docker-compose up -d
+cp docker/env.example .env
+# Edit .env with your configuration
 ```
 
-### 2. Verify Deployment
+Key configuration items:
+- `OPENAI_API_KEY`: Your OpenAI API key
+- `EDA_TOOLS_HOST`: Host where EDA tools are running
+- `SNPSLMD_LICENSE_FILE`: Path to Synopsys license file
+- `CDS_LIC_FILE`: Path to Cadence license file
+
+### 3. Deployment
+
+Use the deployment script for easy management:
 
 ```bash
-# Check container status
-docker-compose ps
+# Build and start all services
+./docker/deploy.sh build
+./docker/deploy.sh start
 
-# Check MCP Agent Client
-curl http://localhost:8000/health
-
-# Check MCP Servers
-curl http://localhost:13333/health
-curl http://localhost:13335/health
-```
-
-### 3. Run Your First Design
-
-```bash
-# Test with natural language interface
-curl -X POST http://localhost:8000/agent \
-  -H "Content-Type: application/json" \
-  -d '{"user_query":"Run synth_setup for design=\"des\" and return the log path."}'
-```
-
-## Docker Configuration
-
-### docker-compose.yml
-
-```yaml
-version: '3.8'
-
-services:
-  mcp-agent-client:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.agent
-    ports:
-      - "8000:8000"
-    environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - MCP_SERVER_HOST=host.docker.internal
-    volumes:
-      - ./designs:/app/designs:ro
-      - ./config:/app/config:ro
-      - ./libraries:/app/libraries:ro
-      - ./logs:/app/logs
-      - ./deliverables:/app/deliverables
-    networks:
-      - mcp-network
-    depends_on:
-      - mcp-servers
-
-  mcp-servers:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.servers
-    ports:
-      - "13333:13333"  # Synthesis Setup
-      - "13334:13334"  # Synthesis Compile
-      - "13335:13335"  # Floorplan
-      - "13336:13336"  # Power Planning
-      - "13337:13337"  # Placement
-      - "13338:13338"  # CTS
-      - "13339:13339"  # Routing
-      - "13440:13440"  # Save Design
-    environment:
-      - EDA_TOOLS_HOST=${EDA_TOOLS_HOST:-host.docker.internal}
-      - SNPSLMD_LICENSE_FILE=${SNPSLMD_LICENSE_FILE}
-      - CDS_LIC_FILE=${CDS_LIC_FILE}
-    volumes:
-      - ./designs:/app/designs
-      - ./config:/app/config:ro
-      - ./libraries:/app/libraries:ro
-      - ./scripts:/app/scripts:ro
-      - ./logs:/app/logs
-      - ./deliverables:/app/deliverables
-    networks:
-      - mcp-network
-    command: >
-      sh -c "
-        python3 server/synth_setup_server.py --port 13333 &
-        python3 server/synth_compile_server.py --port 13334 &
-        python3 server/floorplan_server.py --port 13335 &
-        python3 server/powerplan_server.py --port 13336 &
-        python3 server/placement_server.py --port 13337 &
-        python3 server/cts_server.py --port 13338 &
-        python3 server/route_server.py --port 13339 &
-        python3 server/save_server.py --port 13440 &
-        wait
-      "
-
-networks:
-  mcp-network:
-    driver: bridge
-
-volumes:
-  logs:
-  deliverables:
-```
-
-### Dockerfile.agent
-
-```dockerfile
-FROM python:3.9-slim
-
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
-COPY mcp_agent_client.py .
-COPY server/ ./server/
-
-# Create necessary directories
-RUN mkdir -p logs deliverables
-
-# Expose port
-EXPOSE 8000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
-# Start the application
-CMD ["uvicorn", "mcp_agent_client:app", "--host", "0.0.0.0", "--port", "8000"]
-```
-
-### Dockerfile.servers
-
-```dockerfile
-FROM python:3.9-slim
-
-WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
-COPY server/ ./server/
-COPY scripts/ ./scripts/
-COPY config/ ./config/
-
-# Create necessary directories
-RUN mkdir -p logs deliverables
-
-# Add health check endpoints to servers
-COPY docker/health_check.py ./health_check.py
-
-# Expose ports
-EXPOSE 13333 13334 13335 13336 13337 13338 13339 13440
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD python3 health_check.py || exit 1
-
-# Default command (will be overridden by docker-compose)
-CMD ["python3", "server/synth_setup_server.py", "--port", "13333"]
-```
-
-## Environment Configuration
-
-### .env file
-
-```bash
-# OpenAI API Configuration
-OPENAI_API_KEY=your_openai_api_key_here
-
-# EDA Tools Configuration
-EDA_TOOLS_HOST=host.docker.internal
-SNPSLMD_LICENSE_FILE=/path/to/synopsys/license
-CDS_LIC_FILE=/path/to/cadence/license
-
-# MCP Server Configuration
-MCP_SERVER_HOST=http://localhost
-
-# Optional: Custom ports
-SETUP_PORT=13333
-COMPILE_PORT=13334
-FLOORPLAN_PORT=13335
-POWER_PORT=13336
-PLACE_PORT=13337
-CTS_PORT=13338
-ROUTE_PORT=13339
-SAVE_PORT=13440
-```
-
-## Deployment Options
-
-### Option 1: Local Development
-
-```bash
-# Start all services
-docker-compose up -d
+# Check status
+./docker/deploy.sh status
 
 # View logs
-docker-compose logs -f
+./docker/deploy.sh logs mcp-agent-client
+```
+
+## Services
+
+### Core Services
+
+#### MCP Agent Client
+- **Port**: 8000 (8001 in development)
+- **Purpose**: HTTP API interface for natural language EDA operations
+- **Health Check**: `http://localhost:8000/health`
+
+#### MCP EDA Server
+- **Port**: 8001 (8002 in development)
+- **Purpose**: MCP protocol server for Claude Desktop integration
+- **Health Check**: MCP protocol health check
+
+#### MCP Servers
+- **Ports**: 13333-13440 (14333-14440 in development)
+- **Purpose**: Individual microservices for each design stage
+- **Health Check**: Comprehensive health check script
+
+### Optional Services (Profiles)
+
+#### Experiment Runner
+- **Profile**: `experiment`
+- **Purpose**: Run TCL accuracy evaluation experiments
+- **Usage**: `./docker/deploy.sh start experiment`
+
+#### Test Runner
+- **Profile**: `test`
+- **Purpose**: Run comprehensive test suite
+- **Usage**: `./docker/deploy.sh start test`
+
+## Docker Compose Files
+
+### docker-compose.yml
+Main configuration file with all services and production settings.
+
+### docker-compose.override.yml
+Development overrides with:
+- Different ports to avoid conflicts
+- Debug mode enabled
+- Volume mounts for development
+- Hot reload for agent client
+
+## Deployment Script
+
+The `deploy.sh` script provides easy management of the Docker stack:
+
+### Commands
+
+```bash
+# Build images
+./docker/deploy.sh build
+
+# Start services
+./docker/deploy.sh start                    # All services
+./docker/deploy.sh start experiment         # With experiment profile
+./docker/deploy.sh start test              # With test profile
 
 # Stop services
-docker-compose down
+./docker/deploy.sh stop
+
+# Restart services
+./docker/deploy.sh restart
+
+# Check status
+./docker/deploy.sh status
+
+# View logs
+./docker/deploy.sh logs                    # All logs
+./docker/deploy.sh logs mcp-agent-client   # Specific service
+
+# Run experiments
+./docker/deploy.sh experiment
+
+# Run tests
+./docker/deploy.sh test                    # All tests
+./docker/deploy.sh test unit               # Specific test type
+
+# Cleanup
+./docker/deploy.sh cleanup
 ```
 
-### Option 2: Production Deployment
+## Dockerfiles
 
+### Dockerfile.agent
+- Base: Python 3.9-slim
+- Purpose: MCP Agent Client
+- Features: Health checks, volume mounts, environment configuration
+
+### Dockerfile.servers
+- Base: Python 3.9-slim
+- Purpose: MCP microservices
+- Features: Multi-port exposure, health checks, EDA tool integration
+
+### Dockerfile.mcp
+- Base: Python 3.9-slim
+- Purpose: MCP EDA Server
+- Features: MCP protocol support, health checks
+
+### Dockerfile.experiment
+- Base: Python 3.9-slim
+- Purpose: Experiment framework
+- Features: Experiment tools, result storage
+
+### Dockerfile.test
+- Base: Python 3.9-slim
+- Purpose: Test suite
+- Features: Test dependencies, coverage tools
+
+## Health Checks
+
+### Agent Client Health Check
 ```bash
-# Build production images
-docker-compose -f docker-compose.prod.yml build
-
-# Deploy with proper networking
-docker-compose -f docker-compose.prod.yml up -d
-
-# Monitor services
-docker-compose -f docker-compose.prod.yml logs -f
+curl -f http://localhost:8000/health
 ```
 
-### Option 3: Kubernetes Deployment
-
+### Server Health Check
 ```bash
-# Apply Kubernetes manifests
-kubectl apply -f k8s/
-
-# Check deployment status
-kubectl get pods -n mcp-eda
-
-# Access services
-kubectl port-forward svc/mcp-agent-client 8000:8000 -n mcp-eda
+docker-compose exec mcp-servers python3 health_check.py
 ```
 
-## Network Configuration
+The health check script verifies:
+- All MCP servers are responding
+- EDA tools are accessible
+- License files are available
+- Required directories exist
 
-### Host Network Access
+## Volume Mounts
 
-The containers need to access EDA tools running on the host:
+### Shared Volumes
+- `./designs`: Design files (read-only)
+- `./config`: Configuration files (read-only)
+- `./libraries`: Technology libraries (read-only)
+- `./scripts`: EDA scripts (read-only)
+- `./logs`: Log files (read-write)
+- `./deliverables`: Output files (read-write)
+- `./experiment`: Experiment framework (read-write)
 
-```bash
-# On Linux, use host.docker.internal or host IP
-export EDA_TOOLS_HOST=172.17.0.1
+### Development Volumes
+In development mode, the entire project is mounted for live code changes.
 
-# On macOS/Windows, use host.docker.internal
-export EDA_TOOLS_HOST=host.docker.internal
-```
+## Environment Variables
 
-### Firewall Configuration
+### Required
+- `OPENAI_API_KEY`: OpenAI API key for LLM integration
+- `EDA_TOOLS_HOST`: Host where EDA tools are running
 
-```bash
-# Allow container access to host EDA tools
-sudo ufw allow from 172.17.0.0/16 to any port 22
-sudo ufw allow from 172.17.0.0/16 to any port 8080
-```
+### Optional
+- `DEBUG`: Enable debug mode (default: false)
+- `LOG_LEVEL`: Logging level (default: info)
+- `SNPSLMD_LICENSE_FILE`: Synopsys license file path
+- `CDS_LIC_FILE`: Cadence license file path
 
-## Monitoring and Logging
+### Port Configuration
+- `SETUP_PORT`: Synthesis setup server port (default: 13333)
+- `COMPILE_PORT`: Synthesis compile server port (default: 13334)
+- `FLOORPLAN_PORT`: Floorplan server port (default: 13335)
+- `POWER_PORT`: Power planning server port (default: 13336)
+- `PLACE_PORT`: Placement server port (default: 13337)
+- `CTS_PORT`: Clock tree synthesis server port (default: 13338)
+- `ROUTE_PORT`: Routing server port (default: 13339)
+- `SAVE_PORT`: Save design server port (default: 13440)
+- `MCP_AGENT_PORT`: MCP Agent Client port (default: 8000)
+- `MCP_EDA_PORT`: MCP EDA Server port (default: 8001)
 
-### Container Logs
+## Networking
 
-```bash
-# View all logs
-docker-compose logs -f
+### Default Network
+- **Name**: `mcp-network`
+- **Type**: Bridge
+- **Purpose**: Internal communication between services
 
-# View specific service logs
-docker-compose logs -f mcp-agent-client
-docker-compose logs -f mcp-servers
-```
-
-### Health Monitoring
-
-```bash
-# Check service health
-curl http://localhost:8000/health
-curl http://localhost:13333/health
-
-# Monitor resource usage
-docker stats
-```
-
-### Log Aggregation
-
-```bash
-# Mount logs to host for external monitoring
-docker-compose up -d -v /var/log/mcp-eda:/app/logs
-```
+### Port Mapping
+- **Production**: Direct port mapping (8000, 13333-13440)
+- **Development**: Offset ports to avoid conflicts (8001, 14333-14440)
 
 ## Troubleshooting
 
 ### Common Issues
 
-#### 1. EDA Tools Not Accessible
-
+#### Services Not Starting
 ```bash
-# Check network connectivity
-docker exec -it mcp-eda-mcp-servers-1 ping host.docker.internal
+# Check logs
+./docker/deploy.sh logs
 
-# Verify license files
-docker exec -it mcp-eda-mcp-servers-1 env | grep LICENSE
+# Check status
+./docker/deploy.sh status
+
+# Restart services
+./docker/deploy.sh restart
 ```
 
-#### 2. Permission Issues
+#### EDA Tools Not Accessible
+1. Verify `EDA_TOOLS_HOST` in `.env`
+2. Check license file paths
+3. Ensure EDA tools are running on host
 
+#### Port Conflicts
+- Use development mode with different ports
+- Check for existing services using the same ports
+- Modify port configuration in `.env`
+
+#### Permission Issues
 ```bash
-# Fix file permissions
-sudo chown -R $USER:$USER designs/ logs/ deliverables/
+# Fix volume permissions
+sudo chown -R $USER:$USER ./logs ./deliverables
 
-# Run with proper user
-docker-compose run --user $(id -u):$(id -g) mcp-servers
-```
-
-#### 3. Port Conflicts
-
-```bash
-# Check port usage
-netstat -tlnp | grep -E "(1333[3-9]|13440|8000)"
-
-# Use different ports
-docker-compose -f docker-compose.override.yml up -d
+# Fix Docker permissions
+sudo usermod -aG docker $USER
 ```
 
 ### Debug Mode
 
-```bash
-# Run in debug mode
-docker-compose -f docker-compose.debug.yml up
+Enable debug mode for detailed logging:
 
-# Access container shell
-docker exec -it mcp-eda-mcp-servers-1 bash
+```bash
+# Set in .env
+DEBUG=true
+LOG_LEVEL=debug
+
+# Restart services
+./docker/deploy.sh restart
 ```
 
-## Security Considerations
+### Log Analysis
+
+```bash
+# View specific service logs
+./docker/deploy.sh logs mcp-agent-client
+
+# Follow logs in real-time
+docker-compose logs -f
+
+# Check health status
+docker-compose exec mcp-servers python3 health_check.py
+```
+
+## Performance
+
+### Resource Requirements
+- **Minimum**: 4GB RAM, 2 CPU cores
+- **Recommended**: 8GB RAM, 4 CPU cores
+- **Storage**: 10GB for images and volumes
+
+### Optimization
+- Use volume mounts for persistent data
+- Configure appropriate resource limits
+- Monitor resource usage with `docker stats`
+
+## Security
+
+### Best Practices
+- Use `.env` file for sensitive configuration
+- Don't commit `.env` file to version control
+- Use read-only mounts where possible
+- Regularly update base images
 
 ### Network Security
+- Services communicate over internal Docker network
+- External access only through exposed ports
+- Health checks verify service integrity
 
+## Monitoring
+
+### Health Monitoring
 ```bash
-# Use internal networks only
-docker-compose -f docker-compose.secure.yml up -d
+# Automated health checks
+docker-compose ps
 
-# Implement API authentication
-export MCP_API_KEY=your_secure_api_key
+# Manual health check
+./docker/deploy.sh status
 ```
 
-### Data Protection
-
+### Resource Monitoring
 ```bash
-# Encrypt sensitive data
-docker run --rm -v /path/to/designs:/data \
-  -e ENCRYPT_KEY=your_encryption_key \
-  mcp-eda-encryptor
+# Container resource usage
+docker stats
+
+# Volume usage
+docker system df
 ```
 
-## Performance Optimization
+## Backup and Recovery
 
-### Resource Limits
-
-```yaml
-# docker-compose.yml
-services:
-  mcp-servers:
-    deploy:
-      resources:
-        limits:
-          cpus: '4.0'
-          memory: 8G
-        reservations:
-          cpus: '2.0'
-          memory: 4G
-```
-
-### Caching
-
+### Data Backup
 ```bash
-# Use Docker layer caching
-docker-compose build --no-cache
+# Backup volumes
+docker run --rm -v mcp_eda_logs:/data -v $(pwd):/backup alpine tar czf /backup/logs_backup.tar.gz -C /data .
 
-# Implement application-level caching
-export REDIS_URL=redis://redis:6379
+# Backup deliverables
+docker run --rm -v mcp_eda_deliverables:/data -v $(pwd):/backup alpine tar czf /backup/deliverables_backup.tar.gz -C /data .
 ```
 
-## Migration from Local Installation
-
-### Step 1: Backup Current Setup
-
+### Recovery
 ```bash
-# Backup designs and configurations
-tar -czf mcp-eda-backup-$(date +%Y%m%d).tar.gz \
-  designs/ config/ libraries/ logs/ deliverables/
+# Restore from backup
+docker run --rm -v mcp_eda_logs:/data -v $(pwd):/backup alpine tar xzf /backup/logs_backup.tar.gz -C /data
 ```
 
-### Step 2: Deploy with Docker
+## Development
 
+### Development Mode
 ```bash
-# Deploy new Docker setup
-docker-compose up -d
+# Start in development mode
+docker-compose -f docker-compose.yml -f docker-compose.override.yml up -d
 
-# Verify functionality
-curl -X POST http://localhost:8000/agent \
-  -d '{"user_query":"Run synth_setup for design=\"des\" and return the log path."}'
+# View development logs
+docker-compose -f docker-compose.yml -f docker-compose.override.yml logs -f
 ```
 
-### Step 3: Migrate Data
+### Code Changes
+In development mode, code changes are reflected immediately due to volume mounts.
 
+### Testing in Docker
 ```bash
-# Copy existing data to Docker volumes
-docker cp mcp-eda-backup-20241219.tar.gz mcp-eda-mcp-servers-1:/app/
-docker exec -it mcp-eda-mcp-servers-1 tar -xzf mcp-eda-backup-20241219.tar.gz
+# Run tests in container
+./docker/deploy.sh test
+
+# Run specific test type
+./docker/deploy.sh test unit
 ```
 
-## Conclusion
+## Production Deployment
 
-This hybrid Docker approach provides:
+### Production Checklist
+- [ ] Configure `.env` with production values
+- [ ] Set appropriate resource limits
+- [ ] Configure logging and monitoring
+- [ ] Set up backup procedures
+- [ ] Test health checks
+- [ ] Verify EDA tool access
 
-- **Easy Deployment**: Containerized MCP services
-- **License Compliance**: EDA tools remain on host
-- **Scalability**: Independent service scaling
-- **Portability**: Consistent environment across systems
-- **Maintenance**: Simplified updates and rollbacks
+### Production Commands
+```bash
+# Production deployment
+./docker/deploy.sh build
+./docker/deploy.sh start
 
-The key is maintaining the separation between containerized services and host-based EDA tools while ensuring proper communication between them. 
+# Monitor production
+./docker/deploy.sh status
+./docker/deploy.sh logs
+```
+
+## Support
+
+For issues and questions:
+1. Check the troubleshooting section
+2. Review logs with `./docker/deploy.sh logs`
+3. Verify configuration in `.env`
+4. Check health status with `./docker/deploy.sh status` 

@@ -9,6 +9,17 @@ services:
       - LOG_LEVEL=debug
     volumes:
       - ./:/app:ro  # Mount entire project for development
+    command: ["uvicorn", "mcp_agent_client:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+  mcp-eda-server:
+    ports:
+      - "8002:8001"  # Use different port for MCP EDA server
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=debug
+    volumes:
+      - ./:/app:ro  # Mount entire project for development
+    command: ["python3", "server/mcp/mcp_eda_server.py", "--port", "8001"]
 
   mcp-servers:
     ports:
@@ -38,3 +49,21 @@ services:
         python3 server/save_server.py --port 13440 --debug &
         wait
       " 
+
+  experiment-runner:
+    volumes:
+      - ./:/app  # Mount entire project for development
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=debug
+    profiles:
+      - experiment
+
+  test-runner:
+    volumes:
+      - ./:/app  # Mount entire project for development
+    environment:
+      - DEBUG=true
+      - LOG_LEVEL=debug
+    profiles:
+      - test 

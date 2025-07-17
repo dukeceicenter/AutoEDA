@@ -13,10 +13,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY mcp_agent_client.py .
+COPY mcp_eda_client_simple.py .
 COPY server/ ./server/
+COPY scripts/ ./scripts/
+COPY config/ ./config/
+COPY designs/ ./designs/
+COPY libraries/ ./libraries/
 
 # Create necessary directories
-RUN mkdir -p logs deliverables
+RUN mkdir -p logs deliverables experiment
 
 # Add health check endpoint
 RUN echo 'from fastapi import FastAPI; app = FastAPI(); @app.get("/health"); def health_check(): return {"status": "healthy"}' > health_app.py
