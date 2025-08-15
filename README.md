@@ -574,7 +574,7 @@ This project is licensed under the creative commons - see the [LICENSE](https://
 ## Support
 
 - **Email**: yl996@duke.edu
-- **Discussion**: [Join our discussion](https://github.com/AndyLu666/MCP-EDA-Server/discussions)
+- **Discussion**: [Join our discussion](https://github.com/dukeceicenter/AutoEDA/discussions)
 - **Documentation**: [Quick Start Guide](https://github.com/dukeceicenter/AutoEDA/blob/main/QUICK_START_GUIDE.md)
 - **Issues**: [GitHub Issues](https://github.com/dukeceicenter/AutoEDA/issues)
 
