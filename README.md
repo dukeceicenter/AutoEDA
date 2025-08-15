@@ -557,7 +557,7 @@ request_duration = Histogram('request_duration_seconds', 'Request duration')
 
 ## License
 
-This project is licensed under the creative commons - see the [LICENSE](https://github.com/AndyLu666/MCP-EDA-Server/blob/main/LICENSE.md) file for details.
+This project is licensed under the creative commons - see the [LICENSE](https://github.com/dukeceicenter/AutoEDA/blob/main/LICENSE.md) file for details.
 
 ---
 
