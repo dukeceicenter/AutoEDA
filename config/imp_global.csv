@@ -1,9 +1,0 @@
-version,design_flow_effort,design_power_effort,target_util
-VenU80,express,none,0.8
-VenU70,express,none,0.7
-VsnU80,standard,none,0.8
-VsnU70,standard,none,0.7
-VshU80,standard,high,0.8
-VshU70,standard,high,0.7
-VshU60,standard,high,0.6
-VshU50,standard,high,0.5

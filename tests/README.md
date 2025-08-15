@@ -1,315 +1,417 @@
-# MCP-EDA-Server Test Suite
+# MCP EDA Server Test Suite v2.0
 
-This directory contains comprehensive tests for the MCP-EDA-Server project, covering unit tests, API tests, integration tests, MCP protocol tests, and experimental framework tests.
+Comprehensive test suite for the MCP EDA Server project with 4-server architecture support.
+
+## Overview
+
+This test suite provides comprehensive coverage for the MCP EDA Server project, including:
+
+- **Server Components**: Testing of base server, executor, and individual EDA servers
+- **MCP Integration**: MCP protocol, tool registration, and communication testing
+- **AI Agent Client**: Local LLM integration and natural language processing
+- **CodeBLEU TCL**: TCL code evaluation and similarity metrics
+- **Script Templates**: Jinja2 template rendering and parameter substitution
+- **Integration Flow**: End-to-end EDA workflow testing
 
 ## Test Structure
 
 ```
 tests/
-├── __init__.py                 # Test package initialization
-├── test_config.py             # Configuration file tests
-├── test_designs.py            # Design file tests
-├── test_api_endpoints.py      # API endpoint tests
-├── test_integration.py        # Integration workflow tests
-├── test_mcp_agent_client.py   # MCP Agent client tests
-├── run_tests.py               # Test runner script
-└── README.md                  # This file
+├── __init__.py                    # Test configuration and constants
+├── run_tests.py                   # Main test runner (v2.0)
+├── README.md                      # This documentation
+│
+├── test_server_components.py      # Server class and functionality tests
+├── test_mcp_integration.py        # MCP protocol and tool tests
+├── test_agent_client.py           # AI agent and LLM integration tests
+├── test_codebleu_tcl.py          # CodeBLEU TCL evaluation tests
+├── test_scripts_templates.py      # TCL script template tests
+└── test_integration_flow.py       # End-to-end flow tests
 ```
 
 ## Test Categories
 
 ### 1. Unit Tests
-- **Configuration Tests** (`test_config.py`): Validate CSV configuration files and TCL configurations
-- **Design File Tests** (`test_designs.py`): Check RTL files, design configurations, and design structure
+- **Server Components** (`test_server_components.py`)
+  - BaseServer class functionality
+  - Individual server initialization (synthesis, placement, cts, routing)
+  - Executor script testing
+  - Request model validation
+  - TCL configuration testing
 
-### 2. API Tests
-- **API Endpoint Tests** (`test_api_endpoints.py`): Test microservice API interfaces
-- Server health checks and status endpoints
-- Endpoint functionality validation
-- Error handling and parameter validation
-- Response format verification
+- **Script Templates** (`test_scripts_templates.py`)
+  - Template file existence and syntax
+  - Jinja2 rendering functionality
+  - Parameter substitution
+  - Technology-specific scripts
 
-### 3. Integration Tests
-- **Integration Workflow Tests** (`test_integration.py`): Test complete design workflows
-- End-to-end design flow validation
-- Multi-configuration testing
-- Cross-stage data flow verification
+- **CodeBLEU TCL** (`test_codebleu_tcl.py`)
+  - TCL code similarity evaluation
+  - BLEU score calculation
+  - Syntax and dataflow matching
+  - Batch evaluation functionality
 
-### 4. MCP Protocol Tests
-- **MCP Agent Client Tests** (`test_mcp_agent_client.py`): Test natural language processing
-- Tool selection and parameter extraction
-- Response format verification
-- Error handling and edge cases
-- Natural language query processing
+### 2. Integration Tests
+- **MCP Integration** (`test_mcp_integration.py`)
+  - MCP server startup and configuration
+  - Tool registration and parameter validation
+  - Protocol compliance testing
+  - Error handling and response formatting
+
+- **Agent Client** (`test_agent_client.py`)
+  - Local LLM integration (Qwen model)
+  - Natural language query processing
+  - Tool selection and parameter extraction
+  - Multi-stage workflow orchestration
+
+- **Integration Flow** (`test_integration_flow.py`)
+  - Server availability and health checks
+  - Single-stage execution testing
+  - Multi-stage workflow validation
+  - Checkpoint handling between stages
+  - Error handling and recovery
+
+### 3. Performance Tests
+- **Response Time Validation**
+- **Concurrent Request Handling**
+- **Load Testing**
+- **Memory and Resource Usage**
 
 ## Running Tests
 
 ### Prerequisites
-- Python 3.7+
-- Required packages: `requests`, `unittest`, `pytest` (optional)
-- MCP servers running (for API and integration tests)
-- MCP Agent client running (for Agent tests)
-- MCP EDA server running (for MCP protocol tests)
 
-### Test Execution
-
-#### Run All Tests
+**Required Python Packages:**
 ```bash
-# From project root
+pip install requests unittest pathlib json
+```
+
+**Optional Packages (for full functionality):**
+```bash
+pip install jinja2 transformers torch
+```
+
+**EDA Servers:**
+- Synthesis Server (port 18001)
+- Placement Server (port 18002)
+- CTS Server (port 18003)
+- Routing Server (port 18004)
+
+### Quick Start
+
+```bash
+# Run all tests
 python tests/run_tests.py
 
-# Or from tests directory
-cd tests
-python run_tests.py
-```
-
-#### Run Specific Test Categories
-```bash
-# Unit tests only
+# Run specific test category
 python tests/run_tests.py unit
-
-# API tests only
-python tests/run_tests.py api
-
-# Integration tests only
 python tests/run_tests.py integration
-
-# MCP Agent client tests only
-python tests/run_tests.py agent
-
-# All tests
-python tests/run_tests.py all
-```
-
-#### Run Individual Test Files
-```bash
-# Run specific test file
-python tests/run_tests.py test_config
-python tests/run_tests.py test_designs
-python tests/run_tests.py test_api_endpoints
-python tests/run_tests.py test_integration
-python tests/run_tests.py test_mcp_agent_client
-```
-
-#### Run with pytest (if installed)
-```bash
-# Run all tests with pytest
-pytest tests/
-
-# Run specific test file
-pytest tests/test_config.py
+python tests/run_tests.py performance
 
 # Run with verbose output
-pytest tests/ -v
+python tests/run_tests.py --verbose
 
-# Run with coverage
-pytest tests/ --cov=. --cov-report=html
+# Run unit tests in parallel
+python tests/run_tests.py unit --parallel
+
+# Check dependencies
+python tests/run_tests.py --deps
+
+# List available tests
+python tests/run_tests.py --list
 ```
 
-### Test Output
+### Advanced Usage
 
-Tests provide detailed output including:
-- Test execution status and progress
-- Pass/fail indicators with detailed error messages
-- Service availability checks
-- Summary of results with statistics
-- Debugging information for failed tests
-
-## Test Features
-
-### Non-Intrusive Testing
-- Tests do not modify existing MCP server code or configurations
-- Compatible with different configuration formats and versions
-- Handles various design file structures and formats
-- Preserves existing design implementations
-
-### Robust Error Handling
-- Graceful handling of missing or unavailable services
-- Skip tests when dependencies are not available
-- Comprehensive error reporting with context
-- Timeout handling for long-running operations
-
-### Configuration Compatibility
-- Supports both `clock_period` and `clk_period` field names
-- Compatible with `TOP_MODULE` and `TOP_NAME` configurations
-- Handles different RTL file formats (Verilog, VHDL)
-- Validates CSV configuration file formats
-
-### Design File Validation
-- Verifies RTL file syntax and structure
-- Checks module/entity declarations and port definitions
-- Validates configuration consistency across files
-- Skips non-standard files (packages, includes, etc.)
-- Supports multiple design types and architectures
-
-### MCP Protocol Testing
-- Tests natural language query processing
-- Validates tool selection and parameter extraction
-- Verifies response format and content
-- Tests error handling for invalid requests
-- Validates MCP server communication
-
-## Test Dependencies
-
-### Required Services
-- **MCP Servers**: Ports 13333-13339, 13440 (for API and integration tests)
-- **MCP Agent Client**: Port 8000 (for Agent client tests)
-- **MCP EDA Server**: MCP protocol server (for MCP protocol tests)
-
-### Optional Dependencies
-- Design files in `designs/` directory
-- Configuration files in `config/` directory
-- RTL files in design subdirectories
-- EDA tool licenses (for full integration tests)
-
-### Python Dependencies
 ```bash
-pip install requests unittest2 pytest pytest-cov
+# Run specific test module
+python tests/run_tests.py test_server_components
+
+# Run with custom timeout
+python tests/run_tests.py --timeout 300
+
+# Test with specific design
+python tests/run_tests.py --design des
+
+# Run from project root
+cd /path/to/mcp-eda-example
+python tests/run_tests.py all --verbose
 ```
+
+### Test Options
+
+| Option | Description |
+|--------|-------------|
+| `--verbose, -v` | Enable verbose output with detailed test information |
+| `--parallel, -p` | Run unit tests in parallel for faster execution |
+| `--timeout SECS` | Set timeout for individual tests (default: 120s) |
+| `--design NAME` | Use specific design for testing (default: "des") |
+| `--deps` | Check dependencies and server availability |
+| `--list, -l` | List available test categories and modules |
 
 ## Test Configuration
 
-### Environment Variables
-```bash
-# Test configuration
-export TEST_TIMEOUT=30
-export TEST_RETRIES=3
-export TEST_VERBOSE=true
+Test configuration is centralized in `tests/__init__.py`:
 
-# Service URLs (defaults to localhost)
-export MCP_AGENT_URL=http://localhost:8000
-export MCP_SERVER_URL=http://localhost:13333
+```python
+TEST_CONFIG = {
+    "servers": {
+        "synthesis": {"port": 18001, "endpoint": "/docs"},
+        "placement": {"port": 18002, "endpoint": "/docs"},
+        "cts": {"port": 18003, "endpoint": "/docs"},
+        "routing": {"port": 18004, "endpoint": "/docs"}
+    },
+    "timeouts": {
+        "server_check": 5,
+        "api_call": 30,
+        "integration_test": 120
+    },
+    "test_designs": ["des", "b14"],
+    "tech_library": "FreePDK45"
+}
 ```
 
-### Test Data
-Tests use the following design configurations:
-- **b14**: VHDL design with clock port "clock"
-- **des**: Verilog design with clock port "clk"
-- **leon2**: Verilog design with clock port "clk"
+## Test Output and Results
+
+### Success Output
+```
+[10:30:15] INFO: MCP EDA Server Test Suite v2.0
+[10:30:15] INFO: Checking dependencies...
+[10:30:15] INFO: Python Dependencies:
+[10:30:15] INFO:   ✓ requests
+[10:30:15] INFO:   ✓ unittest
+[10:30:15] INFO: EDA Servers:
+[10:30:15] INFO:   ✓ synthesis (port 18001)
+[10:30:15] INFO:   ✓ placement (port 18002)
+[10:30:16] INFO: Running Unit Tests
+[10:30:16] INFO: Running test_server_components tests...
+[10:30:17] INFO: test_server_components tests: PASSED (12 tests, 0 failures, 0 errors)
+
+✓ test_server_components        PASSED   1.23s    - 12 tests
+✓ test_mcp_integration         PASSED   2.45s    - 8 tests
+✓ test_integration_flow        PASSED   5.67s    - 15 tests
+
+Total: 3, Passed: 3, Failed: 0, Errors: 0, Skipped: 0
+Total execution time: 9.35 seconds
+Server availability: 4/4
+```
+
+### Failure Output
+```
+✗ test_server_components        FAILED   1.23s    - 2 failures, 1 errors
+~ test_mcp_integration         SKIPPED  0.01s    - 8 skipped
+! test_agent_client            ERROR    0.05s    - Import error
+
+Total: 3, Passed: 0, Failed: 1, Errors: 1, Skipped: 1
+```
+
+## Test Features
+
+### Intelligent Dependency Handling
+- **Graceful Skipping**: Tests automatically skip when dependencies are unavailable
+- **Server Detection**: Automatic detection of running EDA servers
+- **Optional Dependencies**: Tests continue even when optional packages are missing
+- **Clear Error Messages**: Detailed information about missing dependencies
+
+### Robust Error Handling
+- **Timeout Protection**: All tests have configurable timeouts
+- **Connection Handling**: Graceful handling of server connection failures
+- **Resource Cleanup**: Automatic cleanup of temporary files and resources
+- **Parallel Safety**: Thread-safe execution for parallel tests
+
+### Comprehensive Coverage
+- **Unit Tests**: Individual component testing with mocking where appropriate
+- **Integration Tests**: Multi-component interaction testing
+- **End-to-End Tests**: Complete workflow validation
+- **Performance Tests**: Response time and load testing
+
+### Modern Testing Practices
+- **Type Hints**: Full type annotation for better code quality
+- **Structured Results**: Detailed test result tracking and reporting
+- **Parallel Execution**: Optional parallel test execution for speed
+- **Configurable**: Flexible configuration through command-line options
+
+## Design Testing
+
+The test suite supports multiple designs for comprehensive validation:
+
+- **des**: Primary test design (Verilog)
+- **b14**: Secondary test design (VHDL)
+- **Custom**: User-specified designs via `--design` option
+
+### Design Requirements
+- RTL files must exist in `designs/{design}/rtl/`
+- Design must be compatible with FreePDK45 technology
+- Design must have valid synthesis and implementation configurations
+
+## Integration with EDA Servers
+
+### Server Health Checks
+Tests automatically check server availability before execution:
+
+```python
+def check_server_health(self, port, endpoint="/docs"):
+    """Check if a server is running and healthy"""
+    try:
+        response = requests.get(f"http://localhost:{port}{endpoint}", timeout=2)
+        return response.status_code == 200
+    except Exception:
+        return False
+```
+
+### API Testing
+Direct API testing with proper error handling:
+
+```python
+def call_server(self, server_name, payload):
+    """Call a specific server with payload"""
+    response = requests.post(f"http://localhost:{port}/run", json=payload)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        return {"status": "error", "message": f"Server returned {response.status_code}"}
+```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Servers Not Running**
-   - Tests will skip API and integration tests
-   - Start servers with `./restart_servers.sh`
-   - Check server logs for errors
+1. **No Servers Available**
+   - Start EDA servers: `python src/run_server.py --server all`
+   - Check server logs in `logs/` directory
+   - Verify ports 18001-18004 are not in use
 
-2. **MCP Agent Client Not Running**
-   - Tests will skip Agent client tests
-   - Start with `python mcp_agent_client.py`
-   - Verify port 8000 is available
-
-3. **MCP EDA Server Not Running**
-   - Tests will skip MCP protocol tests
-   - Start with `python server/mcp/mcp_eda_server.py`
-   - Check MCP server configuration
-
-4. **Missing Dependencies**
+2. **Import Errors**
+   - Ensure you're running from project root
+   - Check Python path includes `src/` directory
    - Install required packages: `pip install requests`
-   - Ensure Python 3.7+ is used
-   - Check EDA tool licenses
 
-5. **Permission Issues**
-   - Ensure test runner has execute permissions
-   - Check file access permissions
-   - Verify network access to localhost
-
-6. **Timeout Issues**
-   - Increase timeout values for slow systems
+3. **Test Timeouts**
+   - Increase timeout: `--timeout 300`
    - Check system resources and load
-   - Verify network connectivity
+   - Verify network connectivity to localhost
+
+4. **Permission Issues**
+   - Ensure test runner has execute permissions
+   - Check file access permissions in `tests/` directory
+   - Verify write access to `logs/` directory
 
 ### Debug Mode
-For detailed debugging, run individual test files:
-```bash
-# Verbose unittest output
-python -m unittest tests.test_config -v
-python -m unittest tests.test_designs -v
 
-# With pytest
-pytest tests/test_config.py -v -s
-pytest tests/test_api_endpoints.py -v -s
+For detailed debugging:
+
+```bash
+# Run individual test with maximum verbosity
+python -m unittest tests.test_server_components -v
+
+# Run specific test class
+python -m unittest tests.test_server_components.TestBaseServer -v
+
+# Run with Python debugger
+python -m pdb tests/run_tests.py unit
 ```
 
 ### Log Analysis
+
+Test logs are automatically created in the `logs/` directory:
+
 ```bash
 # Check test logs
 tail -f logs/test_*.log
 
 # Check server logs
-tail -f logs/*.log
-
-# Check MCP server logs
-tail -f logs/mcp_*.log
+tail -f logs/synthesis_server.log
+tail -f logs/placement_server.log
 ```
 
 ## Contributing
 
-When adding new tests:
-1. Follow existing naming conventions and structure
-2. Include comprehensive docstrings and comments
-3. Add appropriate error handling and cleanup
-4. Update this README if needed
-5. Ensure tests are non-intrusive and idempotent
-6. Add test data and fixtures as needed
-7. Include both positive and negative test cases
+### Adding New Tests
+
+1. **Create Test Module**: Add new `.py` file in `tests/` directory
+2. **Follow Naming Convention**: Use `test_` prefix for modules and test methods
+3. **Include Documentation**: Add comprehensive docstrings
+4. **Handle Dependencies**: Gracefully skip tests when dependencies unavailable
+5. **Update Test Runner**: Add module to appropriate test category in `run_tests.py`
 
 ### Test Writing Guidelines
-- Use descriptive test method names
-- Include setup and teardown methods
-- Handle exceptions gracefully
-- Provide meaningful error messages
-- Use appropriate assertions
-- Clean up resources after tests
 
-## Test Coverage
-
-The test suite covers:
-- Configuration file validation and parsing
-- Design file structure and syntax verification
-- API endpoint functionality and error handling
-- Integration workflow testing across stages
-- MCP Agent client natural language processing
-- MCP protocol communication and tool calling
-- Error handling and edge cases
-- Response format and content validation
-- Service availability and health checks
-- Cross-stage data flow and consistency
-
-## Performance Testing
-
-### Load Testing
-```bash
-# Run concurrent API tests
-python tests/load_test.py --concurrent 10 --duration 60
-
-# Test MCP server performance
-python tests/mcp_performance_test.py --requests 100
+```python
+class TestNewFeature(unittest.TestCase):
+    """Test new feature functionality"""
+    
+    def setUp(self):
+        """Set up test environment"""
+        self.test_dir = Path(tempfile.mkdtemp())
+        
+    def tearDown(self):
+        """Clean up test environment"""
+        shutil.rmtree(self.test_dir, ignore_errors=True)
+    
+    def test_feature_basic(self):
+        """Test basic feature functionality"""
+        # Test implementation
+        self.assertTrue(condition)
+        
+    @unittest.skipIf(condition, "Reason for skipping")
+    def test_feature_advanced(self):
+        """Test advanced feature functionality"""
+        # Advanced test implementation
+        pass
 ```
 
-### Benchmarking
-```bash
-# Benchmark API response times
-python tests/benchmark_api.py
+### Code Quality Standards
 
-# Benchmark MCP tool execution
-python tests/benchmark_mcp.py
-```
+- **Type Hints**: Use type annotations for all function signatures
+- **Error Handling**: Include comprehensive error handling with meaningful messages
+- **Resource Management**: Ensure proper cleanup of temporary resources
+- **Documentation**: Include detailed docstrings and inline comments
+- **Testing**: Write tests for new test utilities and helper functions
+
+## Performance Considerations
+
+### Test Execution Speed
+- **Parallel Execution**: Unit tests can run in parallel with `--parallel`
+- **Smart Skipping**: Tests skip automatically when dependencies unavailable
+- **Efficient Cleanup**: Minimal resource usage with proper cleanup
+- **Timeout Management**: Configurable timeouts prevent hanging tests
+
+### Resource Usage
+- **Memory Management**: Proper cleanup of temporary files and objects
+- **Network Efficiency**: Minimal server requests with intelligent caching
+- **Process Management**: Proper handling of subprocesses and threads
 
 ## Future Enhancements
 
-Potential improvements and additions:
-- Performance benchmarking tests
-- Load testing for concurrent requests
-- Automated test report generation
-- CI/CD integration with GitHub Actions
-- Coverage reporting and analysis
-- Mock server implementations for unit testing
-- Docker-based test environments
-- Cross-platform compatibility tests
-- Security and vulnerability testing
-- API version compatibility tests
-- Experimental framework testing
-- Design regression testing 
+### Planned Features
+- **CI/CD Integration**: GitHub Actions workflow for automated testing
+- **Coverage Reporting**: Code coverage analysis and reporting
+- **Performance Benchmarking**: Automated performance regression detection
+- **Test Result Database**: Historical test result tracking
+- **Docker Integration**: Containerized test execution environment
+
+### Test Expansion
+- **Security Testing**: Vulnerability and penetration testing
+- **Stress Testing**: High-load and resource exhaustion testing
+- **Compatibility Testing**: Multi-platform and multi-version testing
+- **Regression Testing**: Automated detection of functionality regressions
+
+## Version History
+
+### v2.0.0 (Current)
+- Complete rewrite for src/ directory structure
+- Support for 4-server architecture
+- Enhanced MCP integration testing
+- Local LLM testing support
+- Parallel test execution
+- Comprehensive error handling
+
+### v1.0.0 (Legacy)
+- Initial test suite
+- Basic server testing
+- Simple integration tests
+- Manual test execution
+
+---
+
+For more information about the MCP EDA Server project, see the main project documentation in `MCP_IMPLEMENTATION.md`.

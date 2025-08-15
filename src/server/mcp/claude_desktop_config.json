@@ -1,0 +1,43 @@
+{
+  "mcpServers": {
+    "mcp-eda-server": {
+      "command": "bash",
+      "args": [
+        "-c",
+        "cd /path/to/your/mcp-eda-example/src/server/mcp && python3 mcp_eda_server.py"
+      ],
+      "env": {},
+      "description": "MCP EDA Server with 4-server architecture (synthesis, placement, cts, routing)"
+    }
+  },
+  "_examples": {
+    "_comment": "Example configurations for different deployment scenarios",
+    "local_installation": {
+      "command": "bash",
+      "args": [
+        "-c",
+        "cd /path/to/your/mcp-eda-example/src/server/mcp && python3 mcp_eda_server.py"
+      ]
+    },
+    "remote_server_ssh": {
+      "command": "ssh",
+      "args": [
+        "username@your-server.com",
+        "cd /path/to/mcp-eda-example/src/server/mcp && python3 mcp_eda_server.py"
+      ]
+    },
+    "with_conda_environment": {
+      "command": "bash",
+      "args": [
+        "-c",
+        "cd /path/to/your/mcp-eda-example/src/server/mcp && source ~/miniconda3/etc/profile.d/conda.sh && conda activate eda310 && python3 mcp_eda_server.py"
+      ]
+    },
+    "using_startup_script": {
+      "command": "bash",
+      "args": [
+        "/path/to/your/mcp-eda-example/src/server/mcp/start_mcp_server.sh"
+      ]
+    }
+  }
+} 

@@ -1,672 +1,583 @@
-# MCP EDA - Model Context Protocol for Electronic Design Automation
+# AutoEDA: Enabling EDA Flow Automation through Microservice-Based LLM Agents
+
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-green.svg)](https://fastapi.tiangolo.com/)
 
-A comprehensive **Model Context Protocol (MCP)** based Electronic Design Automation (EDA) system that provides intelligent automation for digital design implementation flows. This system integrates multiple EDA tools through a unified MCP interface, enabling natural language-driven design automation with experimental evaluation framework.
+A production-grade, microservice-based Electronic Design Automation (EDA) platform that transforms natural language instructions into complete RTL-to-GDSII flows. Built with AI-powered orchestration and commercial EDA tool integration.
 
-## Features
+---
 
-- **AI-Powered Automation**: Natural language interface for EDA operations using GPT-4
-- **Multi-Tool Integration**: Seamless integration of Synopsys Design Compiler and Cadence Innovus
-- **Complete Design Flow**: End-to-end digital design implementation from RTL to GDSII
-- **RESTful API**: Standardized HTTP API for all EDA operations
-- **Real-time Monitoring**: Live status tracking and detailed logging
-- **Modular Architecture**: Independent microservices for each design stage
-- **Configuration Management**: CSV-based parameter management for design optimization
-- **Experimental Framework**: Comprehensive TCL accuracy evaluation system
-- **Multiple Design Support**: Support for various benchmark designs (des, b14, leon2, etc.)
+
+## Overview
+
+MCP-EDA revolutionizes chip design workflows by providing:
+
+- **AI-Powered Orchestration**: GPT-4 driven intelligent agent that understands natural language design requirements
+- **Microservice Architecture**: Four independent, stateless FastAPI services for complete EDA flow
+- **Template-Driven TCL Generation**: Automated script generation from modular templates
+- **Session-Aware Workflows**: Context preservation across multi-stage design flows
+- **Research Framework**: Built-in experiment and evaluation capabilities with CodeBLEU metrics
+
+---
 
 ## System Architecture
+<p align="center">
+    <img src="assets/overall.png" width="100%">
+</p>
 
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   User Query    │───▶│  MCP Agent      │───▶│  MCP Servers    │
-│  (Natural Lang) │    │  Client (8000)  │    │  (13333-13440)  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                │                       │
-                                ▼                       ▼
-                       ┌─────────────────┐    ┌─────────────────┐
-                       │   OpenAI GPT-4  │    │   EDA Tools     │
-                       │   (Tool Select) │    │  (DC/Innovus)   │
-                       └─────────────────┘    └─────────────────┘
-```
 
-### MCP Server Architecture
+### Service Architecture Details
 
-| Service | Port | Endpoint | Description |
-|---------|------|----------|-------------|
-| **MCP Agent Client** | 8000 | `/agent` | Main interface for natural language processing |
-| **Synthesis Setup** | 13333 | `/setup/run` | RTL synthesis setup and configuration |
-| **Synthesis Compile** | 13334 | `/compile/run` | RTL-to-gate synthesis compilation |
-| **Floorplan** | 13335 | `/floorplan/run` | Chip floorplanning and I/O placement |
-| **Power Planning** | 13336 | `/power/run` | Power distribution network generation |
-| **Placement** | 13337 | `/place/run` | Standard cell placement optimization |
-| **Clock Tree Synthesis** | 13338 | `/cts/run` | Clock distribution network synthesis |
-| **Routing** | 13339 | `/route/run` | Signal routing and optimization |
-| **Save Design** | 13440 | `/save/run` | Final design saving and output generation |
+| Service | Port | Purpose | Key Features |
+|---------|------|---------|--------------|
+| **Intelligent Agent** | 8000 | AI orchestration & workflow management | GPT-4 integration, session management, conflict detection |
+| **Synthesis Service** | 18001 | RTL-to-gate synthesis | Template-driven TCL, Design Compiler integration |
+| **Placement Service** | 18002 | Floorplan + Powerplan + Placement | Multi-stage unified flow, workspace management |
+| **CTS Service** | 18003 | Clock tree synthesis | Post-placement optimization, timing-driven CTS |
+| **Routing Service** | 18004 | Global/detail routing + final save | Complete backend flow, artifact generation |
 
-## Experimental Framework
+### Data Flow Architecture
 
-The project includes a comprehensive experimental framework for evaluating TCL generation accuracy across different methods:
+```mermaid
+sequenceDiagram
+    participant User
+    participant Agent
+    participant GPT4
+    participant Synth
+    participant Place
+    participant CTS
+    participant Route
+    participant Storage
 
-### Experiment Methods
-
-1. **Baseline1**: Pure LLM-based TCL generation
-2. **Baseline2**: LLM + template-based generation  
-3. **Ours**: MCP agent with real EDA tool execution
-
-### Experiment Structure
-
-```
-experiment/
-├── generate/                    # TCL generation scripts
-│   ├── baseline1_generate.py   # Pure LLM generation
-│   ├── baseline2_generate.py   # LLM + template generation
-│   ├── ours_generate.py        # MCP agent generation
-│   └── common_config.py        # Shared configuration
-├── evaluate/                    # Evaluation scripts
-│   ├── tcl_evaluator.py        # Main evaluator
-│   └── evaluation_metrics.py   # Quality metrics
-├── results/                     # Generation results
-├── evaluation_results/          # Evaluation reports
-└── run_experiment.py           # Main experiment runner
+    User->>Agent: Natural language request
+    Agent->>GPT4: Tool selection & parameter extraction
+    GPT4-->>Agent: Execution plan & parameters
+    
+    Note over Agent: Multi-stage flow orchestration
+    
+    Agent->>Synth: POST /run (design config)
+    Synth->>Storage: Generate synthesis results
+    Synth-->>Agent: syn_ver, reports, TCL path
+    
+    Agent->>Place: POST /run (syn_ver dependency)
+    Place->>Storage: Generate placement.enc.dat
+    Place-->>Agent: impl_ver, placement reports
+    
+    Agent->>CTS: POST /run (restore_enc=placement.enc.dat)
+    CTS->>Storage: Generate cts.enc.dat
+    CTS-->>Agent: CTS reports, timing analysis
+    
+    Agent->>Route: POST /run (restore_enc=cts.enc.dat)
+    Route->>Storage: Generate final GDS, SPEF, reports
+    Route-->>Agent: Final artifacts, tarball
+    
+    Agent-->>User: Complete flow results & analysis
 ```
 
-### Running Experiments
+---
 
-```bash
-# Run complete experiment (generate + evaluate)
-cd experiment
-python run_experiment.py --full
+## Key Features
 
-# Run only generation for specific methods
-python run_experiment.py --generate baseline1 ours
+### AI-Powered Workflow Management
+- **Natural Language Processing**: Convert design requirements to EDA parameters
+- **Intelligent Tool Selection**: Automatic flow stage determination
+- **Conflict Detection**: Identify and resolve parameter conflicts
+- **Strategy Optimization**: Performance, power, area, and speed optimization strategies
 
-# Run only evaluation on existing results
-python run_experiment.py --evaluate
+### Microservice Benefits
+- **Independent Scaling**: Each service scales independently
+- **Fault Isolation**: Service failures don't affect the entire flow
+- **Technology Agnostic**: Easy integration with different EDA tools
+- **Development Flexibility**: Teams can work on services independently
 
-# Clean previous results
-python run_experiment.py --clean --full
+### Template System
 ```
+src/scripts/FreePDK45/
+├── tech.tcl                      # Technology configuration
+├── frontend/                     # Synthesis templates
+│   └── combined_synthesis.tcl    # Complete synthesis flow
+└── backend/                      # Physical design templates
+    ├── combined_placement.tcl    # Floorplan + power planning + placement
+    ├── combined_cts.tcl          # Clock tree synthesis
+    └── combined_routing.tcl      # Global/detailed routing + final save
+```
+
+### Session Management
+- **Context Preservation**: Remember previous parameters and preferences
+- **Parameter Inheritance**: Smart parameter reuse across flows
+- **History Tracking**: Complete audit trail of design decisions
+- **Preference Learning**: Adapt to user patterns over time
+
+---
 
 ## Prerequisites
 
-### Software Requirements
-
-- **Python 3.9+**
-- **Synopsys Design Compiler** (for synthesis)
-- **Cadence Innovus** (for physical implementation)
-- **FreePDK45** technology library
-- **OpenAI API Key** (for GPT-4 integration)
-
 ### System Requirements
+| Component | Requirement | Notes |
+|-----------|-------------|-------|
+| **Operating System** | Linux x86-64 | Tested on RHEL 8, Ubuntu 20.04+ |
+| **Python** | 3.9+ | See requirements.txt for dependencies |
+| **Memory** | 16GB+ | Recommended for large designs |
+| **Storage** | 100GB+ | For design databases and results |
 
-- **OS**: Linux (tested on Ubuntu 20.04+)
-- **Memory**: 8GB RAM minimum (16GB+ recommended)
-- **Storage**: 10GB free space for design files and logs
-- **Network**: Local network access for inter-service communication
+### EDA Tools
+| Tool | Version | Purpose |
+|------|---------|---------|
+| **Synopsys Design Compiler** | 2023.03+ | RTL synthesis |
+| **Cadence Innovus** | 19.1+ or 22.1+ | Physical implementation |
+| **Valid Licenses** | Required | Both tools need proper licensing |
+
+---
 
 ## Installation
 
-### Option 1: Docker Deployment (Recommended)
-
-Due to licensing restrictions of commercial EDA tools, we use a **hybrid Docker approach**:
-
+### 1. Clone Repository
 ```bash
-# Clone the repository
-git clone https://github.com/AndyLu666/MCP-EDA-Server.git
-cd MCP-EDA-Server
-
-# Copy environment template
-cp docker/env.example .env
-
-# Edit .env file with your configuration
-# - Set your OpenAI API key
-# - Configure EDA tools host
-# - Set license file paths
-
-# Deploy using Docker
-chmod +x docker/deploy.sh
-./docker/deploy.sh deploy
+git clone https://github.com/your-org/mcp-eda-example.git
+cd mcp-eda-example
 ```
 
-**Note**: EDA tools (Design Compiler, Innovus) must be installed on the host system with valid licenses. The Docker containers communicate with these tools via network.
-
-### Option 2: Local Installation
-
-#### 1. Clone the Repository
-
-```bash
-git clone https://github.com/AndyLu666/MCP-EDA-Server.git
-cd MCP-EDA-Server
-```
-
-#### 2. Set Up Python Environment
-
+### 2. Python Environment Setup
 ```bash
 # Create virtual environment
 python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
 ```
 
-#### 3. Configure Environment Variables
+### 3. Configuration
 
-Create a `.env` file in the project root:
-
+#### **Environment Variables Setup**
 ```bash
-# OpenAI API Configuration
-OPENAI_API_KEY=your_openai_api_key_here
+# Required: OpenAI API Key
+export OPENAI_API_KEY=your_openai_api_key_here
 
-# MCP Server Configuration
-MCP_SERVER_HOST=http://localhost
-
-# Optional: Custom ports (defaults shown)
-SETUP_PORT=13333
-COMPILE_PORT=13334
-FLOORPLAN_PORT=13335
-POWER_PORT=13336
-PLACE_PORT=13337
-CTS_PORT=13338
-ROUTE_PORT=13339
-SAVE_PORT=13440
+# Optional: Server Configuration
+export MCP_SERVER_HOST=http://localhost
+export LOG_ROOT=./logs
 ```
 
-#### 4. Verify EDA Tools Installation
-
+#### **Persistent Configuration (Recommended)**
 ```bash
-# Check Design Compiler
-which dc_shell
+# Add to your ~/.bashrc or ~/.zshrc for permanent setup
+echo 'export OPENAI_API_KEY="your_openai_api_key_here"' >> ~/.bashrc
+source ~/.bashrc
 
-# Check Innovus
-which innovus
-
-# Verify FreePDK45 library
-ls libraries/FreePDK45/
+# Optional: Add EDA tools to PATH if needed
+echo 'export PATH="/opt/synopsys/bin:/opt/cadence/bin:$PATH"' >> ~/.bashrc
 ```
+
+### 4. EDA Tool Setup
+Ensure EDA tools are properly installed and licensed:
+```bash
+# Verify Design Compiler
+dc_shell -version
+
+# Verify Innovus
+innovus -version
+
+# Check license servers
+lmstat -a
+```
+
+---
 
 ## Quick Start
 
-### 1. Start MCP Agent Client
-
+### 1. Environment Setup
 ```bash
-# Terminal 1: Start the main agent
-conda activate eda310  # or your conda environment
-uvicorn mcp_agent_client:app --reload --host 0.0.0.0 --port 8000
+# Activate virtual environment
+source venv/bin/activate
+
+# Verify OpenAI API key is set
+echo "OpenAI API Key: ${OPENAI_API_KEY:0:10}..."
 ```
 
-### 2. Start MCP Servers
-
+### 2. Start EDA Microservices
 ```bash
-# Terminal 2: Start all MCP servers
-./restart_servers.sh
+# Launch all 4 EDA microservices
+python3 src/run_server.py --server all
 
-# Or start individually:
-cd server
-python3 synth_setup_server.py --port 13333 &
-python3 synth_compile_server.py --port 13334 &
-python3 floorplan_server.py --port 13335 &
-python3 powerplan_server.py --port 13336 &
-python3 placement_server.py --port 13337 &
-python3 cts_server.py --port 13338 &
-python3 route_server.py --port 13339 &
-python3 save_server.py --port 13440 &
+# Or start individual servers
+python3 src/run_server.py --server synthesis    # Port 18001
+python3 src/run_server.py --server placement    # Port 18002
+python3 src/run_server.py --server cts          # Port 18003
+python3 src/run_server.py --server routing      # Port 18004
+
+# Verify services are running
+curl http://localhost:18001/docs  # Synthesis API docs
+curl http://localhost:18002/docs  # Placement API docs
+curl http://localhost:18003/docs  # CTS API docs
+curl http://localhost:18003/docs  # Routing API docs
 ```
 
-### 3. Run Your First Design
-
+### 3. Start AI Agent
 ```bash
-# Test with the example design
+# Launch intelligent agent (interactive mode)
+python3 src/mcp_agent_client.py
+
+# Or run as web service
+uvicorn src.mcp_agent_client:app --host 0.0.0.0 --port 8000 --reload
+```
+
+### 4. Run Your First Design
+```bash
+# Complete RTL-to-GDSII flow with natural language
 curl -X POST http://localhost:8000/agent \
   -H "Content-Type: application/json" \
-  -d '{"user_query":"Run synth_setup for design=\"des\" and return the log path."}'
+  -d '{
+    "user_query": "Run complete flow for design des with high performance optimization",
+    "session_id": "demo_session"
+  }'
+
+# Or use the simple client for testing
+python3 src/simple_mcp_client.py
 ```
 
-## Usage Guide
-
-### Natural Language Interface
-
-The MCP Agent Client understands natural language queries and automatically selects the appropriate EDA tool:
-
+### 4. Alternative: Direct Service API
 ```bash
-# Synthesis
-curl -X POST http://localhost:8000/agent \
-  -d '{"user_query":"Run synth_setup for design=\"my_design\" and return the log path."}'
+# Step 1: Synthesis
+curl -X POST http://localhost:18001/run \
+  -H "Content-Type: application/json" \
+  -d '{
+    "design": "aes",
+    "tech": "FreePDK45",
+    "clk_period": 5.0,
+    "force": true
+  }'
 
-curl -X POST http://localhost:8000/agent \
-  -d '{"user_query":"Run synth_compile for design=\"my_design\" and return the log path."}'
-
-# Physical Implementation
-curl -X POST http://localhost:8000/agent \
-  -d '{"user_query":"Run floorplan for design=\"my_design\", top_module=\"my_module\" and return the path to floorplan.enc.dat."}'
-
-curl -X POST http://localhost:8000/agent \
-  -d '{"user_query":"Run placement for design=\"my_design\", top_module=\"my_module\" and return the path to placement.enc.dat."}'
-
-curl -X POST http://localhost:8000/agent \
-  -d '{"user_query":"Run routing for design=\"my_design\", top_module=\"my_module\" and return the path to route_opt.enc.dat."}'
-
-curl -X POST http://localhost:8000/agent \
-  -d '{"user_query":"Run save for design=\"my_design\", top_module=\"my_module\" and return the archive path."}'
+# Step 2: Placement (using synthesis results)
+curl -X POST http://localhost:18002/run \
+  -H "Content-Type: application/json" \
+  -d '{
+    "design": "aes",
+    "tech": "FreePDK45",
+    "syn_ver": "cpV1_clkP1_drcV1_20241201_143022",
+    "target_util": 0.8,
+    "force": true
+  }'
 ```
 
-### Complete Design Flow Example
+---
 
-```bash
-# 1. Synthesis Setup
-curl -X POST http://localhost:8000/agent \
-  -d '{"user_query":"Run synth_setup for design=\"des\" and return the log path."}'
+## API Documentation
 
-# 2. Synthesis Compile
-curl -X POST http://localhost:8000/agent \
-  -d '{"user_query":"Run synth_compile for design=\"des\" and return the log path."}'
-
-# 3. Floorplan
-curl -X POST http://localhost:8000/agent \
-  -d '{"user_query":"Run floorplan for design=\"des\", top_module=\"des3\" and return the syn_ver and the path to floorplan.enc.dat."}'
-
-# 4. Power Planning
-curl -X POST http://localhost:8000/agent \
-  -d '{"user_query":"Run powerplan for design=\"des\", top_module=\"des3\", impl_ver=\"cpV1_clkP1_drcV1__g0_p0\" and return the path to powerplan.enc.dat."}'
-
-# 5. Placement
-curl -X POST http://localhost:8000/agent \
-  -d '{"user_query":"Run placement for design=\"des\", top_module=\"des3\", impl_ver=\"cpV1_clkP1_drcV1__g0_p0\" and return the path to placement.enc.dat."}'
-
-# 6. Clock Tree Synthesis
-curl -X POST http://localhost:8000/agent \
-  -d '{"user_query":"Run CTS for design=\"des\", top_module=\"des3\", impl_ver=\"cpV1_clkP1_drcV1__g0_p0\" and return the path to cts.enc.dat."}'
-
-# 7. Routing
-curl -X POST http://localhost:8000/agent \
-  -d '{"user_query":"Run routing for design=\"des\", top_module=\"des3\", impl_ver=\"cpV1_clkP1_drcV1__g0_p0\" and return the path to route_opt.enc.dat."}'
-
-# 8. Save Design
-curl -X POST http://localhost:8000/agent \
-  -d '{"user_query":"Run save for design=\"des\", top_module=\"des3\", impl_ver=\"cpV1_clkP1_drcV1__g0_p0\" and return the archive path."}'
-```
-
-## Project Structure
-
-```
-mcp-eda-example/
-├── designs/                    # Design source files and results
-│   ├── des/                   # DES encryption design
-│   │   ├── rtl/              # RTL source files
-│   │   ├── FreePDK45/        # Technology-specific results
-│   │   │   ├── synthesis/    # Synthesis outputs
-│   │   │   └── implementation/ # Physical implementation
-│   │   └── config.tcl        # Design configuration
-│   ├── b14/                  # VHDL benchmark design
-│   ├── leon2/                # LEON2 processor design
-│   └── des3/                 # Additional designs
-├── server/                    # MCP server implementations
-│   ├── synth_setup_server.py    # Synthesis setup service
-│   ├── synth_compile_server.py  # Synthesis compile service
-│   ├── floorplan_server.py      # Floorplanning service
-│   ├── powerplan_server.py      # Power planning service
-│   ├── placement_server.py      # Placement service
-│   ├── cts_server.py           # Clock tree synthesis service
-│   ├── route_server.py         # Routing service
-│   ├── save_server.py          # Design save service
-│   └── mcp/                   # MCP server implementations
-│       ├── mcp_eda_server.py   # Main MCP server
-│       └── start_mcp_server.sh # MCP server startup script
-├── experiment/                 # Experimental framework
-│   ├── generate/              # TCL generation methods
-│   │   ├── baseline1_generate.py  # Pure LLM generation
-│   │   ├── baseline2_generate.py  # LLM + template generation
-│   │   ├── ours_generate.py       # MCP agent generation
-│   │   └── common_config.py       # Shared configuration
-│   ├── evaluate/              # Evaluation framework
-│   │   ├── tcl_evaluator.py       # Main evaluator
-│   │   └── evaluation_metrics.py  # Quality metrics
-│   ├── results/               # Generation results
-│   ├── evaluation_results/    # Evaluation reports
-│   └── run_experiment.py      # Main experiment runner
-├── scripts/                   # EDA tool scripts
-│   ├── FreePDK45/           # Technology-specific scripts
-│   │   ├── frontend/        # Synthesis scripts
-│   │   └── backend/         # Physical implementation scripts
-│   └── _helper/             # Python helper scripts
-├── config/                    # Configuration files
-│   ├── synthesis.csv           # Synthesis parameters
-│   ├── imp_global.csv          # Implementation parameters
-│   ├── placement.csv           # Placement parameters
-│   └── cts.csv                 # CTS parameters
-├── libraries/                 # Technology libraries
-│   └── FreePDK45/           # FreePDK45 library files
-├── logs/                      # Execution logs
-├── deliverables/              # Final design outputs
-├── mcp_agent_client.py          # Main MCP agent client
-├── restart_servers.sh           # Server startup script
-├── docker-compose.yml           # Docker Compose configuration
-├── docker/                      # Docker configuration files
-│   ├── Dockerfile.agent         # MCP Agent Client Dockerfile
-│   ├── Dockerfile.servers       # MCP Servers Dockerfile
-│   ├── health_check.py          # Health check script
-│   ├── deploy.sh                # Deployment script
-│   └── env.example              # Environment template
-├── requirements.txt             # Python dependencies
-└── README.md                    # This file
-```
-
-## Configuration
-
-### Design Configuration (`designs/<design>/config.tcl`)
-
-```tcl
-# Top-level module name
-set TOP_NAME "your_module"
-
-# File format (verilog/vhdl)
-set FILE_FORMAT "verilog"
-
-# Clock port name
-set CLOCK_NAME "clk"
-
-# Clock period in nanoseconds
-set clk_period 1.0
-```
-
-### Synthesis Configuration (`config/synthesis.csv`)
-
-| Parameter | Description | Default Value |
-|-----------|-------------|---------------|
-| `clk_period` | Target clock period (ns) | 1.0 |
-| `DRC_max_fanout` | Maximum fanout | 10 |
-| `DRC_max_transition` | Maximum transition time (ns) | 0.5 |
-| `DRC_max_capacitance` | Maximum capacitance (pF) | 5.0 |
-| `compile_cmd` | Compilation command | `compile_ultra` |
-| `map_effort` | Mapping effort | `high` |
-| `power_effort` | Power optimization effort | `medium` |
-| `area_effort` | Area optimization effort | `medium` |
-
-### Implementation Configuration (`config/imp_global.csv`)
-
-| Parameter | Description | Default Value |
-|-----------|-------------|---------------|
-| `ASPECT_RATIO` | Die aspect ratio | 1.0 |
-| `target_util` | Target utilization | 0.7 |
-| `design_flow_effort` | Flow effort level | `standard` |
-| `design_power_effort` | Power optimization effort | `medium` |
-
-## Experimental Framework
-
-### Supported Designs
-
-The system supports various benchmark designs:
-
-- **des**: DES encryption design (Verilog)
-- **b14**: VHDL benchmark design
-- **leon2**: LEON2 processor design
-- **des3**: Additional DES variant
-
-### Experiment Methods
-
-1. **Baseline1 (Pure LLM)**: Direct GPT-4 TCL generation without templates
-2. **Baseline2 (LLM + Template)**: GPT-4 generation with template guidance
-3. **Ours (MCP Agent)**: Real MCP agent execution with EDA tools
-
-### Quality Metrics
-
-The evaluation framework assesses TCL quality across multiple dimensions:
-
-- **Syntax**: Valid TCL syntax and structure
-- **Completeness**: Coverage of required commands
-- **Executability**: Ability to run successfully
-- **Professionalism**: Industry-standard practices
-
-### Running Experiments
-
-```bash
-# Complete experiment
-cd experiment
-python run_experiment.py --full
-
-# Specific methods only
-python run_experiment.py --generate baseline1 ours
-
-# Evaluation only
-python run_experiment.py --evaluate --summary
-
-# Clean and run
-python run_experiment.py --clean --full
-```
-
-## API Reference
-
-### MCP Agent Client API
+### Intelligent Agent API
 
 #### POST `/agent`
+Execute natural language EDA requests.
 
-Main endpoint for natural language EDA operations.
-
-**Request Body:**
+**Request:**
 ```json
 {
-  "user_query": "Run synth_setup for design=\"des\" and return the log path."
+  "user_query": "Run synthesis for design aes with 500MHz clock",
+  "session_id": "optional_session_id"
 }
 ```
 
 **Response:**
 ```json
 {
-  "tool_called": "synth_setup",
+  "tool_called": "synth",
   "tool_input": {
-    "design": "des",
-    "tech": "FreePDK45",
-    "version_idx": 0,
-    "force": true
+    "design": "aes",
+    "clk_period": 2.0,
+    "tech": "FreePDK45"
   },
   "tool_output": {
     "status": "ok",
-    "log_path": "/path/to/log/file",
-    "reports": {
-      "check_design.rpt": "report content"
-    }
-  }
+    "log_path": "/path/to/logs",
+    "reports": {...}
+  },
+  "ai_reasoning": "Selected synthesis with 2ns period for 500MHz target",
+  "suggestions": ["Consider power optimization after synthesis"]
 }
 ```
 
-### Individual MCP Server APIs
+#### GET `/session/{session_id}/history`
+Retrieve session history and preferences.
 
-#### Synthesis Setup Server (Port 13333)
+### Service APIs
 
-**POST `/setup/run`**
+Each service provides OpenAPI documentation at `http://localhost:<port>/docs`:
 
-```json
-{
-  "design": "des",
-  "tech": "FreePDK45",
-  "version_idx": 0,
-  "force": true
-}
-```
-
-#### Floorplan Server (Port 13335)
-
-**POST `/floorplan/run`**
-
-```json
-{
-  "design": "des",
-  "top_module": "des3",
-  "tech": "FreePDK45",
-  "syn_ver": "cpV1_clkP1_drcV1",
-  "g_idx": 0,
-  "p_idx": 0,
-  "force": true
-}
-```
-
-#### Placement Server (Port 13337)
-
-**POST `/place/run`**
-
-```json
-{
-  "design": "des",
-  "top_module": "des3",
-  "tech": "FreePDK45",
-  "impl_ver": "cpV1_clkP1_drcV1__g0_p0",
-  "g_idx": 0,
-  "p_idx": 0,
-  "restore_enc": "/path/to/powerplan.enc.dat",
-  "force": true
-}
-```
-
-## Monitoring and Debugging
-
-### Log Files
-
-All operations generate detailed logs in the `logs/` directory:
-
-```
-logs/
-├── setup/           # Synthesis setup logs
-├── compile/         # Synthesis compile logs
-├── floorplan/       # Floorplanning logs
-├── powerplan/       # Power planning logs
-├── placement/       # Placement logs
-├── cts/            # Clock tree synthesis logs
-├── route/          # Routing logs
-└── save/           # Design save logs
-```
-
-### Status Checking
-
-```bash
-# Check if all servers are running
-netstat -tlnp | grep -E "(1333[3-9]|13440|8000)"
-
-# Check server processes
-ps aux | grep -E "(synth_setup|floorplan|placement|cts|route)"
-
-# Monitor logs in real-time
-tail -f logs/setup/des_setup_*.log
-```
-
-### Common Issues and Solutions
-
-#### 1. Port Already in Use
-```bash
-# Kill existing processes
-pkill -f "synth_setup_server.py"
-pkill -f "floorplan_server.py"
-# ... repeat for other servers
-```
-
-#### 2. EDA Tool Not Found
-```bash
-# Check tool installation
-which dc_shell
-which innovus
-
-# Set up environment variables
-export SNPSLMD_LICENSE_FILE=/path/to/synopsys/license
-export CDS_LIC_FILE=/path/to/cadence/license
-```
-
-#### 3. Library Path Issues
-```bash
-# Verify FreePDK45 library
-ls -la libraries/FreePDK45/
-
-# Check library references in scripts
-grep -r "FreePDK45" scripts/
-```
-
-## Testing
-
-### Run Example Design
-
-```bash
-# Complete flow test
-./run_pipeline.sh
-
-# Individual stage test
-python3 scripts/_helper/synthesis_config_row_no_dbg.py \
-  --design des --version-idx 0 --tech FreePDK45
-```
-
-### Test Different Designs
-
-```bash
-# Test VHDL design (b14)
-curl -X POST http://localhost:8000/agent \
-  -d '{"user_query":"Run synth_setup for design=\"b14\" and return the log path."}'
-
-# Test another design (leon2)
-curl -X POST http://localhost:8000/agent \
-  -d '{"user_query":"Run synth_setup for design=\"leon2\" and return the log path."}'
-```
-
-### Run Experiments
-
-```bash
-# Test experimental framework
-cd experiment
-python run_experiment.py --full --summary
-
-# Test specific method
-python run_experiment.py --generate ours --case_ids case_0
-```
-
-## Contributing
-
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
-
-### Development Setup
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Submit a pull request
-
-### Code Style
-
-- Use Python 3.9+ features
-- Follow PEP 8 style guidelines
-- Add type hints
-- Include docstrings for all functions
-
-## Documentation
-
-- **[Quick Start Guide](QUICK_START_GUIDE.md)**: Step-by-step setup and usage
-- **[API Documentation](API_DOCUMENTATION.md)**: Detailed API reference
-- **[MCP Implementation](MCP_IMPLEMENTATION.md)**: MCP protocol details
-
-## Acknowledgments
-
-- **Synopsys** for Design Compiler
-- **Cadence** for Innovus
-- **OpenAI** for GPT-4 API
-- **FreePDK45** for open-source technology library
-- **FastAPI** for the web framework
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/AndyLu666/MCP-EDA-Server/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/AndyLu666/MCP-EDA-Server/discussions)
-- **Documentation**: [Wiki](https://github.com/AndyLu666/MCP-EDA-Server/wiki)
-
-## Version History
-
-- **v2.0.0** - Added experimental framework and MCP server improvements
-- **v1.2.0** - Enhanced monitoring and logging capabilities
-- **v1.1.0** - Added VHDL support and improved error handling
-- **v1.0.0** - Initial release with basic MCP EDA functionality
+- **Synthesis**: http://localhost:18001/docs
+- **Placement**: http://localhost:18002/docs  
+- **CTS**: http://localhost:18003/docs
+- **Route & Save**: http://localhost:18003/docs
 
 ---
 
-**Made with for the EDA community**
+## Project Structure
 
-Author: Yiyi Lu, Jingyu Pan, Junyao Zhang
+```
+mcp-eda-example/
+├── src/                            # Source code directory
+│   ├── server/                     # EDA microservices
+│   │   ├── base_server.py          # Base server class
+│   │   ├── synthesis_server.py     # Synthesis service
+│   │   ├── placement_server.py     # Placement service  
+│   │   ├── cts_server.py           # CTS service
+│   │   ├── routing_server.py       # Routing service
+│   │   ├── executor.py             # Executor class
+│   │   └── mcp/                    # MCP server
+│   │       ├── mcp_eda_server.py   # MCP server implementation
+│   │       └── claude_desktop_config.json
+│   ├── mcp_agent_client.py         # AI orchestration agent
+│   ├── run_server.py               # Server launcher script
+│   ├── scripts/                    # TCL templates
+│   │   └── FreePDK45/              # Technology-specific scripts
+│   │       ├── tech.tcl            # Technology configuration
+│   │       ├── frontend/           # Synthesis templates
+│   │       └── backend/            # Physical design templates
+│   └── codebleu_tcl/               # CodeBLEU evaluation
+├── designs/                        # Sample designs
+│   ├── des/                        # DES crypto design
+│   ├── b14/                        # b14 design
+├── libraries/                      # PDK and libraries
+├── logs/                           # Service logs
+├── result/                         # Generated TCL scripts
+├── deliverables/                   # Final artifacts
+├── requirements.txt                # Python dependencies
+└── README.md                       # This file
+```
 
-Email: czluyiyi@gmail.com
+---
 
+## TCL Code Quality Evaluation
+
+The platform includes a specialized CodeBLEU-TCL evaluation framework for assessing TCL script quality in EDA workflows:
+
+### CodeBLEU-TCL Framework
+
+CodeBLEU-TCL is a domain-specific implementation of the CodeBLEU metric tailored for Electronic Design Automation TCL scripts. It provides:
+
+- **EDA-Aware Evaluation**: Specialized weights for synthesis, placement, CTS, and routing stages
+- **Domain-Specific Commands**: Recognition of 271+ EDA tool commands across the design flow
+- **Advanced TCL Parsing**: Custom parser optimized for EDA script analysis
+- **Multi-Dimensional Metrics**: Combines n-gram matching, syntax analysis, and dataflow analysis
+
+### Basic Usage
+
+```bash
+cd src/codebleu_tcl
+
+# Basic CodeBLEU evaluation
+python3 -c "
+from tcl_codebleu_evaluator import TCLCodeBLEUEvaluator
+from pathlib import Path
+
+evaluator = TCLCodeBLEUEvaluator()
+
+# Example: Evaluate generated vs reference TCL
+result = evaluator.evaluate_generated_tcl(
+    generated_tcl_file=Path('generated_synth.tcl'),
+    reference_tcl_file=Path('reference_synth.tcl'),
+    tool_type='auto'  # Auto-detects: synthesis, placement, cts, routing
+)
+
+print(f'CodeBLEU Score: {result[\"summary\"][\"overall_score\"]:.2f}')
+print(f'Tool Type: {result[\"file_info\"][\"detected_tool_type\"]}')
+"
+```
+
+### Advanced Evaluation Features
+
+```python
+from codebleu.codebleu import calc_codebleu
+
+# Example TCL scripts
+reference = '''
+set DESIGN_NAME chip_top
+analyze -library WORK -format verilog {$DESIGN_NAME.v}
+elaborate $DESIGN_NAME
+compile_ultra -gate_clock
+report_timing
+'''
+
+candidate = '''
+set DESIGN_NAME chip_top
+analyze -library WORK -format verilog {$DESIGN_NAME.v}
+elaborate $DESIGN_NAME
+compile_ultra -no_boundary_optimization
+report_area
+'''
+
+# Calculate with EDA-specific weights
+result = calc_codebleu([reference], [candidate], 'tcl')
+print(f"CodeBLEU Score: {result['codebleu']:.2f}")
+print(f"Syntax Match: {result['syntax_match_score']:.2f}")
+print(f"Dataflow Match: {result['dataflow_match_score']:.2f}")
+```
+
+### Evaluation Metrics
+
+The framework evaluates TCL code quality across four dimensions:
+
+- **N-gram Match (BLEU)**: Traditional token-level similarity (0.0-1.0)
+- **Weighted N-gram Match**: EDA keyword-aware scoring with domain-specific terms (0.0-1.0)
+- **Syntax Match**: Structural analysis of TCL command hierarchies (0.0-1.0)
+- **Dataflow Match**: Variable dependency and data flow analysis (0.0-1.0)
+
+### EDA Stage-Specific Weights
+
+Different EDA stages use optimized evaluation weights:
+
+```python
+eda_weights = {
+    'synthesis': (0.20, 0.30, 0.25, 0.25),           # Emphasize weighted n-gram
+    'unified_placement': (0.15, 0.25, 0.30, 0.30),   # Focus on syntax and dataflow
+    'cts': (0.20, 0.25, 0.30, 0.25),                # Emphasize syntax structure
+    'unified_route_save': (0.20, 0.25, 0.25, 0.30),  # Highlight dataflow connectivity
+}
+```
+
+### Supported EDA Commands
+
+The system recognizes 271+ domain-specific terms across:
+
+- **Synthesis**: `analyze`, `elaborate`, `compile_ultra`, `create_clock`, `report_timing`
+- **Placement**: `floorPlan`, `placeDesign`, `addStripe`, `globalNetConnect`
+- **Clock Tree**: `ccopt_design`, `create_clock_tree_spec`, `report_ccopt_skew_groups`
+- **Routing**: `routeDesign`, `setNanoRouteMode`, `saveDesign`, `streamOut`
+
+---
+## Advanced Configuration
+
+### Custom EDA Tool Integration
+```python
+# In src/server/custom_tool_server.py
+class CustomToolReq(BaseModel):
+    design: str
+    custom_param: float = 1.0
+
+def generate_custom_tcl(req: CustomToolReq) -> str:
+    # Your custom TCL generation logic
+    return tcl_content
+
+# Register in TOOLS dictionary
+TOOLS["custom_tool"] = {"port": 18004, "path": "/run"}
+```
+
+### Template Customization
+```tcl
+# src/scripts/FreePDK45/backend/combined_placement.tcl
+set custom_param $env(custom_param)
+
+# Your custom EDA commands
+customCommand -param $custom_param
+```
+
+### Strategy Development
+```python
+# In src/mcp_agent_client.py
+STRATEGY_PARAMS["custom_strategy"] = {
+    "design_flow_effort": "custom",
+    "target_util": 0.75,
+    "custom_param": 2.0
+}
+```
+
+---
+
+## Testing
+
+### Unit Tests
+```bash
+# Run all tests
+pytest tests/
+
+# Run specific service tests
+pytest tests/test_synth_server.py -v
+
+# Run with coverage
+pytest --cov=src/server tests/
+```
+
+### Integration Tests
+```bash
+# Test complete flow
+python3 tests/integration/test_full_flow.py
+
+# Test AI agent
+python3 tests/integration/test_agent.py
+```
+
+### Load Testing
+  ```bash
+# Install load testing tools
+pip install locust
+
+# Run load tests
+locust -f tests/load/test_agent_load.py --host=http://localhost:8000
+```
+
+---
+
+## Monitoring and Observability
+
+### Logging Configuration
+```python
+# Configure structured logging
+import logging
+import json
+
+class JSONFormatter(logging.Formatter):
+    def format(self, record):
+        return json.dumps({
+            'timestamp': self.formatTime(record),
+            'level': record.levelname,
+            'service': 'synth_server',
+            'message': record.getMessage()
+        })
+```
+
+### Health Checks
+```bash
+# Check service health
+curl http://localhost:18001/health
+curl http://localhost:8000/health
+
+# Check all services
+./scripts/health_check.sh
+```
+
+### Metrics Collection
+```python
+# Add Prometheus metrics
+from prometheus_client import Counter, Histogram
+
+request_count = Counter('requests_total', 'Total requests')
+request_duration = Histogram('request_duration_seconds', 'Request duration')
+```
+
+---
+
+## License
+
+This project is licensed under the creative commons - see the [LICENSE](https://github.com/AndyLu666/MCP-EDA-Server/blob/main/LICENSE.md) file for details.
+
+---
+
+## Acknowledgments
+
+- **OpenAI** for GPT-4 API and AI capabilities
+- **Synopsys** and **Cadence** for EDA tool integration
+- **FreePDK45** community for the open-source PDK
+- **FastAPI** and **Pydantic** for excellent web framework
+- **Open-source EDA community** for inspiration and collaboration
+
+---
+
+## Support
+
+- **Email**: yl996@duke.edu
+- **Discussion**: [Join our discussion](https://github.com/AndyLu666/MCP-EDA-Server/discussions)
+- **Documentation**: [Quick Start Guide](https://github.com/AndyLu666/MCP-EDA-Server/blob/main/QUICK_START_GUIDE.md)
+- **Issues**: [GitHub Issues](https://github.com/your-org/mcp-eda-example/issues)
+
+---
+
+**Made with passion for the EDA and open-source community from Duke University**
